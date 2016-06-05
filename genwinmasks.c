@@ -27,7 +27,7 @@ int main(void){
 		uint64_t d1=0,d2=0;
 		for(int k=0;k<5;k++){
 			APPLYXY(d1,x+k,y+k);
-			APPLYXY(d2,x+k,5-y+k);
+			APPLYXY(d2,x+k,5-y-k);
 		}
 		PRINTMASK(d1);
 		PRINTMASK(d2);

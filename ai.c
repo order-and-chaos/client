@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <sys/time.h>
 
-//#define NDEBUF
+// #define NDEBUG
 #include <assert.h>
 
 #define ORDER 0
@@ -20,9 +20,15 @@
 #define OO 0
 #define XX 1
 
-#define MAXDEPTH 2
+#define MAXDEPTH 5
 
-#define INF 1000000000
+#undef ENABLE_HASH
+
+#ifdef ENABLE_HASH
+#define HASHSIZE 1000003
+#endif
+
+#define INF 1000000000 //1e9
 
 #include "winmasks.h"
 const uint64_t fullmask=0xfffffffff; //36/4=9 f's
@@ -31,8 +37,8 @@ const uint64_t fullmask=0xfffffffff; //36/4=9 f's
 #define REMOVE(bitmap,idx) do {(bitmap)&=~(1ULL<<(idx));} while(0)
 #define ISEMPTY(bitmap,idx) (!((bitmap)&(1ULL<<(idx))))
 
-inline int max(int a,int b){return b>a?b:a;}
-inline int min(int a,int b){return b<a?b:a;}
+int max(int a,int b){return b>a?b:a;}
+int min(int a,int b){return b<a?b:a;}
 
 typedef struct Board{
 	uint64_t b[2];
@@ -50,8 +56,16 @@ void applymove(Board *board,Move mv){
 	APPLY(board->b[mv.stone],mv.pos);
 }
 
+#ifdef ENABLE_HASH
+int boardhash(const Board *board){
+	int r=(board->b[0]^(board->b[1]<<28))%HASHSIZE;
+	assert(r>=0&&r<HASHSIZE);
+	return r;
+}
+#endif
+
 #ifdef NDEBUG
-void printboard(Board board){}
+void printboard(Board board){(void)board;}
 #else
 void printboard(Board board){
 	for(int y=0;y<6;y++){
@@ -77,18 +91,106 @@ int checkwin(const Board *board){
 }
 
 int evaluate(const Board *board,int win){
-	(void)board; (void)win;
+	if(win!=-1){
+		return 150*(1-2*win); // positive for Order, negative for Chaos
+	}
+
+	int x,y,i,co1,cx1,co2,cx2;
+	uint64_t m;
+	int score=0;
+
+	// Horizontal (1), vertical (2)
+	for(y=0;y<6;y++)for(x=0;x<2;x++){
+		co1=cx1=co2=cx2=0;
+		for(i=0;i<5;i++){
+			m=1ULL<<(6*y+x+i); // horizontal
+			co1+=(board->b[0]&m)!=0;
+			cx1+=(board->b[1]&m)!=0;
+
+			m=1ULL<<(6*(x+i)+y); //vertical
+			co2+=(board->b[0]&m)!=0;
+			cx2+=(board->b[1]&m)!=0;
+		}
+
+		if(co1==0)score+=cx1*cx1;
+		if(cx1==0)score+=co1*co1;
+
+		if(co2==0)score+=cx2*cx2;
+		if(cx2==0)score+=co2*co2;
+	}
+
+	// Diagonal \ (1), / (2)
+	for(y=0;y<2;y++)for(x=0;x<2;x++){
+		co1=cx1=co2=cx2=0;
+		for(i=0;i<5;i++){
+			m=1ULL<<(6*(y+i)+x+i); // \.
+			co1+=(board->b[0]&m)!=0;
+			cx1+=(board->b[1]&m)!=0;
+
+			m=1ULL<<(6*(5-y-i)+x+i); // /
+			co2+=(board->b[0]&m)!=0;
+			cx2+=(board->b[1]&m)!=0;
+		}
+
+		if(co1==0)score+=cx1*cx1;
+		if(cx1==0)score+=co1*co1;
+
+		if(co2==0)score+=cx2*cx2;
+		if(cx2==0)score+=co2*co2;
+	}
+
+	return score;
 }
 
-// From wikipedia: https://en.wikipedia.org/wiki/Alpha–beta_pruning#Pseudocode
+#ifdef ENABLE_HASH
+typedef struct Hashitem{
+	Board board;
+	int depth,alpha,beta;
+	int score;
+} Hashitem;
+
+Hashitem hashtable[HASHSIZE]={{{{0,0}},0,0,0,0}};
+
+int hashhit=0,totalhit=0;
+#endif
+
+// From Wikipedia: https://en.wikipedia.org/wiki/Alpha–beta_pruning#Pseudocode
 int alphabeta(Board *board,int player,int alpha,int beta,int depth){
+	assert(board->b[0]!=0||board->b[1]!=0);
+#ifdef ENABLE_HASH
+	Hashitem *hitem=hashtable+boardhash(board);
+	totalhit++;
+	if(hitem->board.b[0]==board->b[0]&&
+	   hitem->board.b[1]==board->b[1]&&
+	   hitem->depth==depth&&
+	   hitem->alpha<=alpha&&
+	   hitem->beta>=beta){
+		assert(hitem->board.b[0]!=0||hitem->board.b[1]!=0);
+		hashhit++;
+		return hitem->score;
+	}
+#endif
+
 	int win=checkwin(board);
 	if(depth==0||win!=-1){
+#ifdef ENABLE_HASH
+		hitem->board.b[0]=board->b[0];
+		hitem->board.b[1]=board->b[1];
+		hitem->depth=depth;
+		hitem->alpha=alpha;
+		hitem->beta=beta;
+		hitem->score=evaluate(board,win);
+		return hitem->score;
+#else
 		return evaluate(board,win);
+#endif
 	}
+
+	int best;
 	if(player==ORDER){
-		int best=-INF;
+		best=-INF;
 		for(int p=0;p<36;p++){
+			if(!ISEMPTY(board->b[0]|board->b[1],p))continue;
 			APPLY(board->b[0],p);
 			best=max(best,alphabeta(board,!player,alpha,beta,depth-1));
 			REMOVE(board->b[0],p);
@@ -101,10 +203,10 @@ int alphabeta(Board *board,int player,int alpha,int beta,int depth){
 			alpha=max(alpha,best);
 			if(beta<=alpha)break;
 		}
-		return best;
 	} else {
-		int best=INF;
+		best=INF;
 		for(int p=0;p<36;p++){
+			if(!ISEMPTY(board->b[0]|board->b[1],p))continue;
 			APPLY(board->b[0],p);
 			best=min(best,alphabeta(board,!player,alpha,beta,depth-1));
 			REMOVE(board->b[0],p);
@@ -117,32 +219,53 @@ int alphabeta(Board *board,int player,int alpha,int beta,int depth){
 			beta=min(beta,best);
 			if(beta<=alpha)break;
 		}
-		return best;
 	}
+
+#ifdef ENABLE_HASH
+	hitem->board.b[0]=board->b[0];
+	hitem->board.b[1]=board->b[1];
+	hitem->depth=depth;
+	hitem->alpha=alpha;
+	hitem->beta=beta;
+	hitem->score=best;
+#endif
+	return best;
 }
 
-// Positive scores are good for Order, negative are good for Chaos.
+// High scores are good for Order, low are good for Chaos.
 Move calcmove(Board *board,int player){
 	int bestscore=player==ORDER?-INF:INF,bestat=-1,beststone=-1;
 	int score;
 	for(int p=0;p<36;p++){
-		if(!ISEMPTY(board->b[0]|board->b[1],p))continue;
+		if(!ISEMPTY(board->b[0]|board->b[1],p)){
+			fprintf(stderr,". .   ");
+			if(p%6==5)fputc('\n',stderr);
+			continue;
+		}
+
+		assert(board->b[0]==0ULL&&board->b[1]==0ULL);
 
 		APPLY(board->b[0],p);
 		score=alphabeta(board,!player,-INF,INF,MAXDEPTH);
+		REMOVE(board->b[0],p);
+		fprintf(stderr,"%d ",score);
 		if(player==ORDER?score>bestscore:score<bestscore){
 			bestat=p;
 			beststone=0;
+			bestscore=score;
 		}
-		REMOVE(board->b[0],p);
 
 		APPLY(board->b[1],p);
 		score=alphabeta(board,!player,-INF,INF,MAXDEPTH);
+		REMOVE(board->b[1],p);
+		fprintf(stderr,"%d   ",score);
 		if(player==ORDER?score>bestscore:score<bestscore){
 			bestat=p;
 			beststone=1;
+			bestscore=score;
 		}
-		REMOVE(board->b[1],p);
+
+		if(p%6==5)fputc('\n',stderr);
 	}
 
 	Move mv={bestat,beststone};
@@ -171,6 +294,7 @@ int terminalio(void){
 		printboard(board);
 	}
 
+	int win;
 	while(true){
 		char c=getchar();
 		if(c=='Q'||feof(stdin))break;
@@ -180,13 +304,20 @@ int terminalio(void){
 		assert(ISEMPTY(board.b[stone],pos));
 		APPLY(board.b[stone],pos);
 		printboard(board);
-		int win=checkwin(&board);
+		win=checkwin(&board);
 		if(win!=-1)break;
 
 		Move mv=calcmove(&board,me);
 		assert(ISEMPTY(board.b[mv.stone],mv.pos));
 		APPLY(board.b[mv.stone],mv.pos);
+		printf("%c %d\n","OX"[mv.stone],mv.pos);
 		printboard(board);
+		win=checkwin(&board);
+		if(win!=-1)break;
+	}
+	switch(win){
+		case ORDER: fprintf(stderr,"%s (Order) won!\n",me==win?"I":"You"); break;
+		case CHAOS: fprintf(stderr,"%s (Chaos) won!\n",me==win?"I":"You"); break;
 	}
 	return 0;
 }
@@ -195,6 +326,13 @@ int main(void){
 	struct timeval tv;
 	gettimeofday(&tv,NULL);
 	srandom(tv.tv_sec*1000000+tv.tv_usec);
+
+	Board board={{0,0}};
+	calcmove(&board,ORDER);
+#ifdef ENABLE_HASH
+	printf("hit: %d/%d (%.1f%%)\n",hashhit,totalhit,100.0*hashhit/totalhit);
+#endif
+	return 0;
 
 	return terminalio();
 }
