@@ -315,8 +315,8 @@ int terminalio(void){
 	bool tty=isatty(0);
 
 	char c=getchar();
-	if(c=='Q')return 0;
-	int me=c=='C';
+	if(c=='Q'||c=='q')return 0;
+	int me=c=='C'||c=='c';
 	bool start=getchar()=='1';
 	scanf("%*[^\n]"); getchar();
 	if(feof(stdin))return 0;
@@ -332,8 +332,8 @@ int terminalio(void){
 	int win;
 	while(true){
 		char c=getchar();
-		if(c=='Q'||feof(stdin))break;
-		bool stone=c=='X';
+		if(c=='Q'||c=='q'||feof(stdin))break;
+		bool stone=c=='X'||c=='x';
 		int pos;
 		scanf(" %d",&pos); getchar();
 		bool isvalid=ISEMPTY(board.b[0]|board.b[1],pos);
