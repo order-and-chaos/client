@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <unistd.h>
 #include <sys/time.h>
 
 // #define NDEBUG
@@ -20,7 +21,7 @@
 #define OO 0
 #define XX 1
 
-#define MAXDEPTH 5
+#define MAXDEPTH 4
 
 #undef ENABLE_HASH
 
@@ -39,6 +40,8 @@ const uint64_t fullmask=0xfffffffff; //36/4=9 f's
 
 int max(int a,int b){return b>a?b:a;}
 int min(int a,int b){return b<a?b:a;}
+
+int reduceabs(int a,int d){return a>d?a-d:a<-d?a+d:0;}
 
 typedef struct Board{
 	uint64_t b[2];
@@ -192,13 +195,13 @@ int alphabeta(Board *board,int player,int alpha,int beta,int depth){
 		for(int p=0;p<36;p++){
 			if(!ISEMPTY(board->b[0]|board->b[1],p))continue;
 			APPLY(board->b[0],p);
-			best=max(best,alphabeta(board,!player,alpha,beta,depth-1));
+			best=max(best,reduceabs(alphabeta(board,!player,alpha,beta,depth-1),1));
 			REMOVE(board->b[0],p);
 			alpha=max(alpha,best);
 			if(beta<=alpha)break;
 
 			APPLY(board->b[1],p);
-			best=max(best,alphabeta(board,!player,alpha,beta,depth-1));
+			best=max(best,reduceabs(alphabeta(board,!player,alpha,beta,depth-1),1));
 			REMOVE(board->b[1],p);
 			alpha=max(alpha,best);
 			if(beta<=alpha)break;
@@ -208,13 +211,13 @@ int alphabeta(Board *board,int player,int alpha,int beta,int depth){
 		for(int p=0;p<36;p++){
 			if(!ISEMPTY(board->b[0]|board->b[1],p))continue;
 			APPLY(board->b[0],p);
-			best=min(best,alphabeta(board,!player,alpha,beta,depth-1));
+			best=min(best,reduceabs(alphabeta(board,!player,alpha,beta,depth-1),1));
 			REMOVE(board->b[0],p);
 			beta=min(beta,best);
 			if(beta<=alpha)break;
 
 			APPLY(board->b[1],p);
-			best=min(best,alphabeta(board,!player,alpha,beta,depth-1));
+			best=min(best,reduceabs(alphabeta(board,!player,alpha,beta,depth-1),1));
 			REMOVE(board->b[1],p);
 			beta=min(beta,best);
 			if(beta<=alpha)break;
@@ -232,29 +235,60 @@ int alphabeta(Board *board,int player,int alpha,int beta,int depth){
 	return best;
 }
 
+typedef struct Moveorderitem {
+	int p,stone,score;
+} Moveorderitem;
+
+int moveorderitem_compare(const void *a,const void *b){
+	return ((Moveorderitem*)b)->score-((Moveorderitem*)a)->score;
+}
+
 // High scores are good for Order, low are good for Chaos.
 Move calcmove(Board *board,int player){
 	int bestscore=player==ORDER?-INF:INF,bestat=-1,beststone=-1;
 	int score;
+	Moveorderitem mvs[72];
+	int nmvs=0;
 	for(int p=0;p<36;p++){
-		if(!ISEMPTY(board->b[0]|board->b[1],p)){
-			fprintf(stderr,". .   ");
+		if(!ISEMPTY(board->b[0]|board->b[1],p))continue;
+
+		mvs[nmvs].p=p;
+		mvs[nmvs].stone=0;
+		APPLY(board->b[0],p);
+		mvs[nmvs].score=evaluate(board,checkwin(board));
+		REMOVE(board->b[0],p);
+		nmvs++;
+
+		mvs[nmvs].p=p;
+		mvs[nmvs].stone=1;
+		APPLY(board->b[1],p);
+		mvs[nmvs].score=evaluate(board,checkwin(board));
+		REMOVE(board->b[1],p);
+		nmvs++;
+	}
+
+	qsort(mvs,nmvs,sizeof(Moveorderitem),moveorderitem_compare);
+
+	for(int i=0;i<nmvs;i++){
+		int p=mvs[i].p;
+		int stone=mvs[i].stone;
+		/*if(!ISEMPTY(board->b[0]|board->b[1],p)){
+			fprintf(stderr," .  .   ");
 			if(p%6==5)fputc('\n',stderr);
 			continue;
-		}
+		}*/
 
-
-		APPLY(board->b[0],p);
+		APPLY(board->b[stone],p);
 		score=alphabeta(board,!player,-INF,INF,MAXDEPTH);
-		REMOVE(board->b[0],p);
+		REMOVE(board->b[stone],p);
 		fprintf(stderr,"%d ",score);
 		if(player==ORDER?score>bestscore:score<bestscore){
 			bestat=p;
-			beststone=0;
+			beststone=stone;
 			bestscore=score;
 		}
 
-		APPLY(board->b[1],p);
+		/*APPLY(board->b[1],p);
 		score=alphabeta(board,!player,-INF,INF,MAXDEPTH);
 		REMOVE(board->b[1],p);
 		fprintf(stderr,"%d   ",score);
@@ -264,7 +298,7 @@ Move calcmove(Board *board,int player){
 			bestscore=score;
 		}
 
-		if(p%6==5)fputc('\n',stderr);
+		if(p%6==5)fputc('\n',stderr);*/
 	}
 
 	Move mv={bestat,beststone};
@@ -314,8 +348,8 @@ int terminalio(void){
 		win=checkwin(&board);
 		if(win!=-1)break;
 
-		Move mv=calcmove(&board,me);
-		assert(ISEMPTY(board.b[mv.stone],mv.pos));
+		Move mv=calcmove(&board,me); fputc('\n',stderr);
+		assert(ISEMPTY(board.b[0]|board.b[1],mv.pos));
 		APPLY(board.b[mv.stone],mv.pos);
 		printf("%c %d\n","OX"[mv.stone],mv.pos);
 		printboard(board);
