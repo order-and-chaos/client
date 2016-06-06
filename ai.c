@@ -278,6 +278,8 @@ Move calcmove(Board *board,int player){
 // When the program should stop, input /Q/. The program should stop automatically when either
 // player has won.
 int terminalio(void){
+	bool tty=isatty(0);
+
 	char c=getchar();
 	if(c=='Q')return 0;
 	int me=c=='C';
@@ -300,7 +302,13 @@ int terminalio(void){
 		bool stone=c=='X';
 		int pos;
 		scanf(" %d",&pos); getchar();
-		assert(ISEMPTY(board.b[stone],pos));
+		bool isvalid=ISEMPTY(board.b[0]|board.b[1],pos);
+		if(tty){
+			if(!isvalid){
+				fprintf(stderr,"Invalid move!\n");
+				continue;
+			}
+		} else assert(isvalid);
 		APPLY(board.b[stone],pos);
 		printboard(board);
 		win=checkwin(&board);
