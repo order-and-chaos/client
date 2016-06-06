@@ -249,22 +249,24 @@ Move calcmove(Board *board,int player){
 	int score;
 	Moveorderitem mvs[72];
 	int nmvs=0;
+	int win;
 	for(int p=0;p<36;p++){
 		if(!ISEMPTY(board->b[0]|board->b[1],p))continue;
 
-		mvs[nmvs].p=p;
-		mvs[nmvs].stone=0;
-		APPLY(board->b[0],p);
-		mvs[nmvs].score=evaluate(board,checkwin(board));
-		REMOVE(board->b[0],p);
-		nmvs++;
-
-		mvs[nmvs].p=p;
-		mvs[nmvs].stone=1;
-		APPLY(board->b[1],p);
-		mvs[nmvs].score=evaluate(board,checkwin(board));
-		REMOVE(board->b[1],p);
-		nmvs++;
+		for(int stone=0;stone<2;stone++){
+			mvs[nmvs].p=p;
+			mvs[nmvs].stone=stone;
+			APPLY(board->b[stone],p);
+			win=checkwin(board);
+			if(win==player){
+				REMOVE(board->b[stone],p);
+				Move mv={p,stone};
+				return mv;
+			}
+			mvs[nmvs].score=evaluate(board,win);
+			REMOVE(board->b[stone],p);
+			nmvs++;
+		}
 	}
 
 	qsort(mvs,nmvs,sizeof(Moveorderitem),moveorderitem_compare);
