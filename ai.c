@@ -6,6 +6,8 @@
 // diagonal); Chaos wins when the board is full.
 // There are no ties in this game.
 
+#include "params.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -13,21 +15,15 @@
 #include <unistd.h>
 #include <sys/time.h>
 
-// #define NDEBUG
+#ifndef ASSERTS
+#define NDEBUG
+#endif
 #include <assert.h>
 
 #define ORDER 0
 #define CHAOS 1
 #define OO 0
 #define XX 1
-
-#define MAXDEPTH 4
-
-#undef ENABLE_HASH
-
-#ifdef ENABLE_HASH
-#define HASHSIZE 1000003
-#endif
 
 #define INF 1000000000 //1e9
 
@@ -59,17 +55,6 @@ void applymove(Board *board,Move mv){
 	APPLY(board->b[mv.stone],mv.pos);
 }
 
-#ifdef ENABLE_HASH
-int boardhash(const Board *board){
-	int r=(board->b[0]^(board->b[1]<<28))%HASHSIZE;
-	assert(r>=0&&r<HASHSIZE);
-	return r;
-}
-#endif
-
-#ifdef NDEBUG
-void printboard(Board board){(void)board;}
-#else
 void printboard(Board board){
 	for(int y=0;y<6;y++){
 		for(int x=0;x<6;x++){
@@ -82,7 +67,6 @@ void printboard(Board board){
 	}
 	fputc('\n',stderr);
 }
-#endif
 
 int checkwin(const Board *board){
 	if(((board->b[0]|board->b[1])&fullmask)==fullmask)return CHAOS;
@@ -145,48 +129,13 @@ int evaluate(const Board *board,int win){
 	return score;
 }
 
-#ifdef ENABLE_HASH
-typedef struct Hashitem{
-	Board board;
-	int depth,alpha,beta;
-	int score;
-} Hashitem;
-
-Hashitem hashtable[HASHSIZE]={{{{0,0}},0,0,0,0}};
-
-int hashhit=0,totalhit=0;
-#endif
-
 // From Wikipedia: https://en.wikipedia.org/wiki/Alpha–beta_pruning#Pseudocode
 int alphabeta(Board *board,int player,int alpha,int beta,int depth){
 	assert(board->b[0]!=0||board->b[1]!=0);
-#ifdef ENABLE_HASH
-	Hashitem *hitem=hashtable+boardhash(board);
-	totalhit++;
-	if(hitem->board.b[0]==board->b[0]&&
-	   hitem->board.b[1]==board->b[1]&&
-	   hitem->depth==depth&&
-	   hitem->alpha<=alpha&&
-	   hitem->beta>=beta){
-		assert(hitem->board.b[0]!=0||hitem->board.b[1]!=0);
-		hashhit++;
-		return hitem->score;
-	}
-#endif
 
 	int win=checkwin(board);
 	if(depth==0||win!=-1){
-#ifdef ENABLE_HASH
-		hitem->board.b[0]=board->b[0];
-		hitem->board.b[1]=board->b[1];
-		hitem->depth=depth;
-		hitem->alpha=alpha;
-		hitem->beta=beta;
-		hitem->score=evaluate(board,win);
-		return hitem->score;
-#else
 		return evaluate(board,win);
-#endif
 	}
 
 	int best;
@@ -224,14 +173,6 @@ int alphabeta(Board *board,int player,int alpha,int beta,int depth){
 		}
 	}
 
-#ifdef ENABLE_HASH
-	hitem->board.b[0]=board->b[0];
-	hitem->board.b[1]=board->b[1];
-	hitem->depth=depth;
-	hitem->alpha=alpha;
-	hitem->beta=beta;
-	hitem->score=best;
-#endif
 	return best;
 }
 
@@ -274,33 +215,15 @@ Move calcmove(Board *board,int player){
 	for(int i=0;i<nmvs;i++){
 		int p=mvs[i].p;
 		int stone=mvs[i].stone;
-		/*if(!ISEMPTY(board->b[0]|board->b[1],p)){
-			fprintf(stderr," .  .   ");
-			if(p%6==5)fputc('\n',stderr);
-			continue;
-		}*/
 
 		APPLY(board->b[stone],p);
 		score=alphabeta(board,!player,-INF,INF,MAXDEPTH);
 		REMOVE(board->b[stone],p);
-		fprintf(stderr,"%d ",score);
 		if(player==ORDER?score>bestscore:score<bestscore){
 			bestat=p;
 			beststone=stone;
 			bestscore=score;
 		}
-
-		/*APPLY(board->b[1],p);
-		score=alphabeta(board,!player,-INF,INF,MAXDEPTH);
-		REMOVE(board->b[1],p);
-		fprintf(stderr,"%d   ",score);
-		if(player==ORDER?score>bestscore:score<bestscore){
-			bestat=p;
-			beststone=1;
-			bestscore=score;
-		}
-
-		if(p%6==5)fputc('\n',stderr);*/
 	}
 
 	Move mv={bestat,beststone};
@@ -328,7 +251,9 @@ int terminalio(void){
 	if(start){
 		printf("X 14\n");
 		APPLY(board.b[XX],14);
+#ifdef PRINTBOARD
 		printboard(board);
+#endif
 	}
 
 	int win;
@@ -346,15 +271,19 @@ int terminalio(void){
 			}
 		} else assert(isvalid);
 		APPLY(board.b[stone],pos);
+#ifdef PRINTBOARD
 		printboard(board);
+#endif
 		win=checkwin(&board);
 		if(win!=-1)break;
 
-		Move mv=calcmove(&board,me); fputc('\n',stderr);
+		Move mv=calcmove(&board,me);
 		assert(ISEMPTY(board.b[0]|board.b[1],mv.pos));
 		APPLY(board.b[mv.stone],mv.pos);
 		printf("%c %d\n","OX"[mv.stone],mv.pos);
+#ifdef PRINTBOARD
 		printboard(board);
+#endif
 		win=checkwin(&board);
 		if(win!=-1)break;
 	}
@@ -369,13 +298,6 @@ int main(void){
 	struct timeval tv;
 	gettimeofday(&tv,NULL);
 	srandom(tv.tv_sec*1000000+tv.tv_usec);
-
-	/*Board board={{0,0}};
-	calcmove(&board,ORDER);
-#ifdef ENABLE_HASH
-	printf("hit: %d/%d (%.1f%%)\n",hashhit,totalhit,100.0*hashhit/totalhit);
-#endif
-	return 0;*/
 
 	return terminalio();
 }

@@ -11,7 +11,7 @@ clean:
 remake: clean all
 
 
-ai: ai.c winmasks.h
+ai: ai.c $(wildcard *.h)
 	$(CC) $(CFLAGS) -o $@ $<
 
 genwinmasks: genwinmasks.c
