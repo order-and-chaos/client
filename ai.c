@@ -243,7 +243,6 @@ Move calcmove(Board *board,int player){
 			continue;
 		}
 
-		assert(board->b[0]==0ULL&&board->b[1]==0ULL);
 
 		APPLY(board->b[0],p);
 		score=alphabeta(board,!player,-INF,INF,MAXDEPTH);
@@ -327,12 +326,12 @@ int main(void){
 	gettimeofday(&tv,NULL);
 	srandom(tv.tv_sec*1000000+tv.tv_usec);
 
-	Board board={{0,0}};
+	/*Board board={{0,0}};
 	calcmove(&board,ORDER);
 #ifdef ENABLE_HASH
 	printf("hit: %d/%d (%.1f%%)\n",hashhit,totalhit,100.0*hashhit/totalhit);
 #endif
-	return 0;
+	return 0;*/
 
 	return terminalio();
 }
