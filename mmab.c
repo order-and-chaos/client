@@ -63,6 +63,7 @@ int checkwin(const Board *board){
 	return -1;
 }
 
+// High scores are good for Order, low are good for Chaos.
 static int evaluate(const Board *board,int win){
 	if(win!=-1){
 		return 150*(1-2*win); // positive for Order, negative for Chaos
@@ -170,7 +171,6 @@ static int moveorderitem_compare(const void *a,const void *b){
 	return ((Moveorderitem*)b)->score-((Moveorderitem*)a)->score;
 }
 
-// High scores are good for Order, low are good for Chaos.
 Move calcmove(Board *board,int player){
 	int bestscore=player==ORDER?-INF:INF,bestat=-1,beststone=-1;
 	int score;
@@ -203,7 +203,7 @@ Move calcmove(Board *board,int player){
 		int stone=mvs[i].stone;
 
 		APPLY(board->b[stone],p);
-		score=alphabeta(board,!player,-INF,INF,MAXDEPTH);
+		score=alphabeta(board,!player,-INF,INF,MMAB_MAXDEPTH);
 		REMOVE(board->b[stone],p);
 		if(player==ORDER?score>bestscore:score<bestscore){
 			bestat=p;

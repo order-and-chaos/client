@@ -8,4 +8,4 @@
 #define ASSERTS
 
 // Search depth for minimax-alpha/beta
-#define MAXDEPTH 4
+#define MMAB_MAXDEPTH 4
