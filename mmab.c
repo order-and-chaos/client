@@ -1,10 +1,4 @@
-// Order and Chaos AI.  - Tom Smeding
-
-// The board is 6x6, in row-major order. Left-top is index 0.
-// One player is Order, the other is Chaos; they take alternate turns, and can both place X'es and
-// O's at will (one per turn). Order wins when five of the same stone are in a row (orthogonal or
-// diagonal); Chaos wins when the board is full.
-// There are no ties in this game.
+// Order and Chaos AI: Minimax/alpha-beta pruning.  - Tom Smeding
 
 #include "params.h"
 
