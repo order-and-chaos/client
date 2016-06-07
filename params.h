@@ -9,3 +9,6 @@
 
 // Search depth for minimax-alpha/beta
 #define MMAB_MAXDEPTH 4
+
+// Number of playthroughs for Monte Carlo
+#define MC_PLAYTHROUGHS 10000

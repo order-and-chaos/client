@@ -3,8 +3,8 @@ CC = gcc
 CFLAGS = -Wall -Wextra -O2 -std=c11 -fwrapv
 
 # library used for ai_term, and list of all ai libnames
-TERMLIB = mmab
-AI_LIBNAMES = mmab
+TERMLIB = mc
+AI_LIBNAMES = mmab mc
 
 
 # --------------------
