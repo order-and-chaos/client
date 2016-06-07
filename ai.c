@@ -29,10 +29,10 @@ const uint64_t fullmask=0xfffffffff; //36/4=9 f's
 #define REMOVE(bitmap,idx) do {(bitmap)&=~(1ULL<<(idx));} while(0)
 #define ISEMPTY(bitmap,idx) (!((bitmap)&(1ULL<<(idx))))
 
-int max(int a,int b){return b>a?b:a;}
-int min(int a,int b){return b<a?b:a;}
+static int max(int a,int b){return b>a?b:a;}
+static int min(int a,int b){return b<a?b:a;}
 
-int reduceabs(int a,int d){return a>d?a-d:a<-d?a+d:0;}
+static int reduceabs(int a,int d){return a>d?a-d:a<-d?a+d:0;}
 
 Board* makeboard(void){
 	return calloc(1,sizeof(Board));
@@ -69,7 +69,7 @@ int checkwin(const Board *board){
 	return -1;
 }
 
-int evaluate(const Board *board,int win){
+static int evaluate(const Board *board,int win){
 	if(win!=-1){
 		return 150*(1-2*win); // positive for Order, negative for Chaos
 	}
@@ -122,7 +122,7 @@ int evaluate(const Board *board,int win){
 }
 
 // From Wikipedia: https://en.wikipedia.org/wiki/Alpha–beta_pruning#Pseudocode
-int alphabeta(Board *board,int player,int alpha,int beta,int depth){
+static int alphabeta(Board *board,int player,int alpha,int beta,int depth){
 	assert(board->b[0]!=0||board->b[1]!=0);
 
 	int win=checkwin(board);
@@ -172,7 +172,7 @@ typedef struct Moveorderitem {
 	int p,stone,score;
 } Moveorderitem;
 
-int moveorderitem_compare(const void *a,const void *b){
+static int moveorderitem_compare(const void *a,const void *b){
 	return ((Moveorderitem*)b)->score-((Moveorderitem*)a)->score;
 }
 
