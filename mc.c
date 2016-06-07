@@ -23,11 +23,6 @@ const uint64_t fullmask=0xfffffffff; //36/4=9 f's
 #define REMOVE(bitmap,idx) do {(bitmap)&=~(1ULL<<(idx));} while(0)
 #define ISEMPTY(bitmap,idx) (!((bitmap)&(1ULL<<(idx))))
 
-//static int max(int a,int b){return b>a?b:a;}
-//static int min(int a,int b){return b<a?b:a;}
-
-//static int reduceabs(int a,int d){return a>d?a-d:a<-d?a+d:0;}
-
 Board* makeboard(void){
 	return calloc(1,sizeof(Board));
 }
