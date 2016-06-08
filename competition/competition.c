@@ -8,14 +8,20 @@
 
 #include "../ai.h"
 
+#define NMATCHES 2
+
+#define WINSCORE 3
+#define LOSSSCORE 1
+
+int max(int a,int b){return b>a?b:a;}
+
 __attribute__((noreturn)) void usage(int argc,char **argv){
 	(void)argc;
 	fprintf(stderr,
 		"Usage: %s [players...]\n"
 		"If called with no players, calls `make players` and collects all the\n"
 		"dylibs or so's that it finds. If called with arguments, they should\n"
-		"be the base names of the libraries (e.g. pass 'mmab' for the player\n"
-		"contained in mmab.dylib or mmab.so).\n",
+		"be the full names of the libraries (e.g. 'mmab.dylib').\n",
 		argv[0]);
 	exit(1);
 }
@@ -36,33 +42,38 @@ void* openlibrary(const char *path){
 	return handle;
 }
 
-typedef struct Llistdata{
-	void *handle;
-	int score;
-} Llistdata;
-
 typedef struct Llist{
-	Llistdata *data;
+	void *handle;
+	char *name;
 	struct Llist *next;
 } Llist;
 
-Llist* llist_prepend(Llist *head,Llistdata* data){
+Llist* llist_prepend(Llist *head,void* handle,const char *name){
 	Llist *newhead=calloc(1,sizeof(Llist));
 	assert(newhead);
-	newhead->data=data;
+	newhead->handle=handle;
+	asprintf(&newhead->name,"%s",name);
+	assert(newhead->name);
 	newhead->next=head;
 	return newhead;
 }
 
-void llist_foreach(Llist *head,void (*f)(Llistdata*)){
+int llist_len(Llist *head){
+	if(head==NULL)return 0;
+	int len=1;
+	while((head=head->next)!=NULL)len++;
+	return len;
+}
+
+void llist_foreach(Llist *head,void (*f)(void*,const char*)){
 	if(!head)return;
-	f(head->data);
+	f(head->handle,head->name);
 	if(head->next)llist_foreach(head->next,f);
 }
 
 void llist_free(Llist *head){
 	if(!head)return;
-	if(head->data)free(head->data);
+	if(head->name)free(head->name);
 	if(head->next)llist_free(head->next);
 	free(head);
 }
@@ -83,10 +94,7 @@ Llist* libsfromdir(const char *dirpath){
 			char *str;
 			asprintf(&str,"%s/%s",dirpath,dire->d_name);
 			assert(str);
-			Llistdata *data=malloc(sizeof(Llistdata));
-			data->handle=openlibrary(str);
-			data->score=0;
-			handles=llist_prepend(handles,data);
+			handles=llist_prepend(handles,openlibrary(str),dire->d_name);
 			free(str);
 		}
 	}
@@ -94,7 +102,7 @@ Llist* libsfromdir(const char *dirpath){
 }
 
 void* getsymbol(void *handle,const char *name){
-	printf("Getting symbol %s from handle %p\n",name,handle);
+	//printf("Getting symbol %s from handle %p\n",name,handle);
 	void *addr=dlsym(handle,name);
 	if(!addr){
 		fprintf(stderr,"Symbol '%s' not found in library!\n",name);
@@ -122,44 +130,135 @@ Move libcalcmove(void *handle,Board *board,int player){
 	return ((Move(*)(Board*,int))getsymbol(handle,"calcmove"))(board,player);
 }
 
-void tempfunc(Llistdata *data){
-	Board *board=libmakeboard(data->handle);
-	libprintboard(data->handle,board);
-}
+typedef struct Playerdata{
+	const char *name;
+	void *handle;
+	int score;
+} Playerdata;
 
-void dlclosemapper(Llistdata *data){
-	if(dlclose(data->handle)!=0){
-		fprintf(stderr,"dlclose failed: %s\n",dlerror());
+void runmatch(Playerdata *p1,Playerdata *p2){
+	Board *bd[2]={libmakeboard(p1->handle),libmakeboard(p2->handle)};
+	Playerdata *pl[2]={p1,p2};
+
+	Move mv;
+	int win=-1;
+	while(win==-1){
+		for(int i=0;i<2;i++){
+			mv=libcalcmove(pl[i]->handle,bd[i],i);
+			if(mv.pos<0||mv.pos>=36||mv.stone<0||mv.stone>1){
+				fprintf(stderr,"Player %s: returned invalid move (pos=%d,stone=%d)\n",
+					pl[i]->name,mv.pos,mv.stone);
+				exit(1);
+			}
+			if(!libisempty(pl[i]->handle,bd[i],mv.pos)){
+				fprintf(stderr,"Player %s: returned move on non-empty space (pos=%d,stone=%d)\n",
+					pl[i]->name,mv.pos,mv.stone);
+				exit(1);
+			}
+
+			libapplymove(pl[0]->handle,bd[0],mv);
+			libapplymove(pl[1]->handle,bd[1],mv);
+
+			win=libcheckwin(pl[0]->handle,bd[0]);
+			int win2=libcheckwin(pl[1]->handle,bd[1]);
+			if(win2!=win){
+				fprintf(stderr,"Players %s and %s disagree over win status: %d vs %d\n",
+					pl[0]->name,pl[1]->name,win,win2);
+				exit(1);
+			}
+			if(win!=-1)break;
+		}
 	}
+	if(win==ORDER){
+		pl[0]->score+=WINSCORE;
+		pl[1]->score+=LOSSSCORE;
+		printf("%s - %s: win - loss\n",pl[0]->name,pl[1]->name);
+	} else if(win==CHAOS){
+		pl[0]->score+=LOSSSCORE;
+		pl[1]->score+=WINSCORE;
+		printf("%s - %s: loss - win\n",pl[0]->name,pl[1]->name);
+	} else {
+		fprintf(stderr,"Invalid win value %d returned by players %s and %s\n",
+			win,pl[0]->name,pl[1]->name);
+		exit(1);
+	}
+
+	free(bd[0]);
+	free(bd[1]);
 }
 
-void runmatch(Llistdata *data1,Llistdata *data2){
-	;
+int playerindexorder(void *players,const void *a,const void *b){
+	Playerdata *pl=(Playerdata*)players;
+	return pl[*(int*)b].score-pl[*(int*)a].score;
+}
+
+void printscoretable(int nplayers,Playerdata *players){
+	int maxlen=4; // for the header
+	for(int i=0;i<nplayers;i++){
+		maxlen=max(maxlen,strlen(players[i].name));
+	}
+
+	int indices[nplayers];
+	for(int i=0;i<nplayers;i++)indices[i]=i;
+	qsort_r(indices,nplayers,sizeof(int),players,playerindexorder);
+
+	printf("Name");
+	for(int i=4;i<maxlen;i++)putchar(' ');
+	printf(" | Score\n");
+	for(int i=0;i<maxlen;i++)putchar('-');
+	printf("-+-------\n");
+
+	for(int i=0;i<nplayers;i++){
+		printf("%s",players[indices[i]].name);
+		for(int j=strlen(players[indices[i]].name);j<maxlen;j++)putchar(' ');
+		printf(" | %d\n",players[indices[i]].score);
+	}
 }
 
 int main(int argc,char **argv){
-	if(argc==2&&strcmp(argv[1],"-h")==0)usage(argc,argv);
+	if(argc==2&&(strcmp(argv[1],"-h")==0||strcmp(argv[1],"--help"))){
+		usage(argc,argv);
+	}
 
-	Llist *handles;
+	Playerdata *players;
+	int nplayers;
 	if(argc>1){
-		handles=NULL;
-		for(int i=argc-1;i>=1;i--){
-			handles=llist_prepend(handles,openlibrary(argv[i]));
+		nplayers=argc-1;
+		players=malloc((argc-1)*sizeof(Playerdata));
+		assert(players);
+		for(int i=0;i<argc-1;i++){
+			players[i].name=argv[i+1];
+			players[i].handle=openlibrary(argv[i+1]);
+			players[i].score=0;
 		}
 	} else {
-		handles=libsfromdir(".");
+		Llist *llist=libsfromdir(".");
+		nplayers=llist_len(llist);
+		players=malloc((argc-1)*sizeof(Playerdata));
+		assert(players);
+
+		Llist *it=llist;
+		for(int i=0;i<nplayers;i++){
+			players[i].name=it->name;
+			it->name=NULL; // we take ownership
+			players[i].handle=it->handle;
+			players[i].score=0;
+			it=it->next;
+		}
+
+		llist_free(llist);
 	}
 
-	for(Llist *it1=handles;it1!=NULL;it1=it1->next){
-		Llistdata *data1=it1->data;
-		for(Llist *it2=handles;it2!=NULL;it2=it2->next){
-			Llistdata *data2=it2->data;
-			runmatch(data1,data2);
+	for(int i=0;i<nplayers;i++)for(int j=0;j<nplayers;j++){
+		if(i==j)continue;
+		for(int k=0;k<NMATCHES;k++)runmatch(players+i,players+j);
+	}
+
+	printscoretable(nplayers,players);
+
+	for(int i=0;i<nplayers;i++){
+		if(dlclose(players[i].handle)!=0){
+			fprintf(stderr,"handle %p: dlclose failed: %s\n",players[i].handle,dlerror());
 		}
 	}
-
-	llist_foreach(handles,tempfunc);
-
-	llist_foreach(handles,dlclosemapper);
-	llist_free(handles);
 }

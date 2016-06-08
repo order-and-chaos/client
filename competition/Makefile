@@ -13,7 +13,7 @@ remake: clean all
 
 players:
 	make -C ..
-	cp $(wildcard ../*.dylib ../*.so) .
+	cp $$(find .. -maxdepth 1 -name '*.dylib' -o -name '*.so') .
 
 
 competition: competition.c
