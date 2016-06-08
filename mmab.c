@@ -172,6 +172,11 @@ static int moveorderitem_compare(const void *a,const void *b){
 }
 
 Move calcmove(Board *board,int player){
+	if(board->b[0]==0&&board->b[1]==0){
+		Move mv={player==ORDER?14:1,XX};
+		return mv;
+	}
+
 	int bestscore=player==ORDER?-INF:INF,bestat=-1,beststone=-1;
 	int score;
 	Moveorderitem mvs[72];

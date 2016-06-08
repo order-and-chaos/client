@@ -83,6 +83,11 @@ static int playthrough(Board board,int player){
 }
 
 Move calcmove(Board *board,int player){
+	if(board->b[0]==0&&board->b[1]==0){
+		Move mv={player==ORDER?14:1,XX};
+		return mv;
+	}
+
 	int score,best,bestp=-1,beststone=-1;
 	for(int p=0;p<36;p++){
 		if(!ISEMPTY(board->b[0]|board->b[1],p))continue;
