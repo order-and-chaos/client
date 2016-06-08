@@ -4,7 +4,7 @@ CFLAGS = -Wall -Wextra -O2 -std=c11 -fwrapv
 
 # library used for ai_term, and list of all ai libnames
 TERMLIB = mc
-AI_LIBNAMES = mmab mc
+AI_LIBNAMES = mmab mc rand
 
 
 # --------------------
