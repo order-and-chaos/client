@@ -1,5 +1,6 @@
 ai_term
 genwinmasks
 *.dylib
+*.a
 *.o
 *.dSYM/
