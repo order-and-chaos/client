@@ -2,9 +2,8 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 -std=c11 -fwrapv
 
-# library used for ai_term, and list of all ai libnames
+# library used for ai_term
 TERMLIB = mc
-AI_LIBNAMES = mmab mc rand
 
 
 # --------------------
@@ -19,22 +18,24 @@ else
 	LIB_FLAGS = -shared -fPIC
 endif
 
-AI_LIBS = $(foreach base,$(AI_LIBNAMES),$(base).$(LIB_EXT))
-
-PRODUCTS = $(AI_LIBS) ai_term genwinmasks winmasks.h
-
 .PHONY: all clean remake
 
-all: $(PRODUCTS)
+all: ai_term
 
 clean:
-	rm -f $(PRODUCTS)
+	rm -f ai_term genwinmasks winmasks.h *.o *.dylib *.so *.a
 
 remake: clean all
 
 
 %.$(LIB_EXT): %.c winmasks.h $(wildcard *.h)
 	$(CC) $(CFLAGS) $(LIB_FLAGS) -o $@ $<
+
+%.a: %.o
+	ar -cr $@ $^
+
+%.o: %.c winmasks.h
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 ai_term: ai_term.c $(TERMLIB).$(LIB_EXT) $(wildcard *.h)
 	$(CC) $(CFLAGS) -o $@ $(filter-out %.h,$^)
