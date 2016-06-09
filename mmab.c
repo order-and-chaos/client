@@ -51,7 +51,6 @@ void printboard(const Board *board){
 		}
 		fputc('\n',stderr);
 	}
-	fputc('\n',stderr);
 }
 
 int checkwin(const Board *board){

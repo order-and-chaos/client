@@ -39,7 +39,7 @@ int terminalio(void){
 		mv.pos=14;
 		applymove(board,mv);
 #ifdef PRINTBOARD
-		printboard(board);
+		printboard(board); fputc('\n',stderr);
 #endif
 	}
 
@@ -61,7 +61,7 @@ int terminalio(void){
 		mv.pos=pos;
 		applymove(board,mv);
 #ifdef PRINTBOARD
-		printboard(board);
+		printboard(board); fputc('\n',stderr);
 #endif
 		win=checkwin(board);
 		if(win!=-1)break;
@@ -71,7 +71,7 @@ int terminalio(void){
 		applymove(board,mv);
 		printf("%c %d\n","OX"[mv.stone],mv.pos);
 #ifdef PRINTBOARD
-		printboard(board);
+		printboard(board); fputc('\n',stderr);
 #endif
 		win=checkwin(board);
 		if(win!=-1)break;
