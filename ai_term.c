@@ -34,9 +34,10 @@ int terminalio(void){
 	Move mv;
 
 	if(start){
-		printf("X 14\n");
 		mv.stone=XX;
-		mv.pos=14;
+		mv.pos=N*(N/2)+N/2;
+		/*mv=calcmove(board,me);
+		printf("X %d\n",mv.pos);*/
 		applymove(board,mv);
 #ifdef PRINTBOARD
 		printboard(board); fputc('\n',stderr);
@@ -89,6 +90,11 @@ int main(void){
 	struct timeval tv;
 	gettimeofday(&tv,NULL);
 	srandom(tv.tv_sec*1000000+tv.tv_usec);
+
+	/*Board *board=makeboard();
+	Move mv=calcmove(board,ORDER);
+	printf("mv={pos=%d,stone=%c}\n",mv.pos,"OX"[mv.stone]);
+	return 0;*/
 
 	return terminalio();
 }

@@ -17,7 +17,7 @@
 #define INF 1000000000 //1e9
 
 #include "winmasks.h"
-const uint64_t fullmask=0xfffffffff; //36/4=9 f's
+const uint64_t fullmask=(1ULL<<(N*N))-1;
 
 #define APPLY(bitmap,idx) do {(bitmap)|=1ULL<<(idx);} while(0)
 #define REMOVE(bitmap,idx) do {(bitmap)&=~(1ULL<<(idx));} while(0)
@@ -37,8 +37,8 @@ bool isempty(const Board *board,int pos){
 
 void printboard(const Board *board){
 	uint64_t b0=board->b[0],b1=board->b[1];
-	for(int y=0;y<6;y++){
-		for(int x=0;x<6;x++){
+	for(int y=0;y<N;y++){
+		for(int x=0;x<N;x++){
 			fputc(".OX"[(b0&1)+2*(b1&1)],stderr);
 			fputc(' ',stderr);
 			b0>>=1;
@@ -59,10 +59,10 @@ int checkwin(const Board *board){
 
 Move calcmove(Board *board,int player){
 	(void)player;
-	Move poss[72];
+	Move poss[2*N*N];
 	int nposs=0;
 
-	for(int p=0;p<36;p++){
+	for(int p=0;p<N*N;p++){
 		for(int stone=0;stone<2;stone++){
 			if(!ISEMPTY(board->b[0]|board->b[1],p))continue;
 			poss[nposs].pos=p;
