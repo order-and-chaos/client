@@ -3,7 +3,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -O2 -std=c11 -fwrapv
 
 # library used for ai_term
-TERMLIB = mc
+TERMLIB = mmab
 
 
 # --------------------
@@ -24,6 +24,7 @@ all: ai_term
 
 clean:
 	rm -f ai_term genwinmasks winmasks.h *.o *.dylib *.so *.a
+	rm -rf *.dSYM
 
 remake: clean all
 
