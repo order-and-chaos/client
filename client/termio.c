@@ -40,6 +40,7 @@ static void sighandler(int sig){
 	if(!screenlive)return;
 	switch(sig){
 		case SIGINT:
+		case SIGABRT:
 			endkeyboard();
 			endscreen();
 			exit(130); // ^C
@@ -118,6 +119,7 @@ void initscreen(void){
 	if(!sighandlerinstalled){
 		signal(SIGWINCH,sighandler);
 		signal(SIGINT,sighandler);
+		signal(SIGABRT,sighandler);
 	}
 	sighandlerinstalled=true;
 	screenlive=true;

@@ -4,18 +4,21 @@
 
 #include "termio.h"
 #include "../ai.h"
+#include "../params.h"
 
 
 void tprintboard(const Board *board){
 	uint64_t b0=board->b[0],b1=board->b[1];
-	for(int y=0;y<6;y++){
-		for(int x=0;x<6;x++){
-			tputc(".OX"[(b0&1)+2*(b1&1)]);
-			tputc(' ');
+	char buf[2*N];
+	buf[2*N-1]='\0';
+	for(int y=0;y<N;y++){
+		for(int x=0;x<N;x++){
+			buf[2*x]=".OX"[(b0&1)+2*(b1&1)];
+			if(x<N-1)buf[2*x+1]=' ';
 			b0>>=1;
 			b1>>=1;
 		}
-		tputc('\n');
+		tprintf("%s\n",buf);
 	}
 }
 
@@ -29,7 +32,22 @@ void startmultiplayer(void){
 }
 
 void startsingleplayer(void){
-	startmultiplayer();
+	clearscreen();
+	moveto(0,0);
+	setbold(true);
+	tprintf("Order & Chaos -- Single player");
+	setbold(false);
+
+	Board *board=makeboard();
+
+	while(true){
+		moveto(2,2);
+		tprintboard(board);
+		redraw();
+
+		getkey();
+		return;
+	}
 }
 
 void showmenu(int basex,int basey){

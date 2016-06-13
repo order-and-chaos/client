@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 -std=c11 -fwrapv
+CFLAGS = -Wall -Wextra -g -std=c11 -fwrapv
 
 AI_LIB = ../mmab.a
 
