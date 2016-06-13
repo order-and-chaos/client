@@ -17,6 +17,8 @@ void endkeyboard(void);
 void initscreen(void);
 void endscreen(void);
 
+void clearscreen(void);
+
 Size gettermsize(void);
 void setstyle(const Style *style);
 void setfg(int fg);
@@ -24,8 +26,12 @@ void setbg(int bg);
 void setbold(bool bold);
 void setul(bool ul);
 void tputc(char c);
-void tprint(const char *format,...) __printflike(1,2);
+void tprintf(const char *format,...) __printflike(1,2);
 void redraw(void);
+
+void moveto(int x,int y);
+
+void bel(void);
 
 // If in [0,254], actually that character; else one of the KEY_ constants
 int getkey(void);

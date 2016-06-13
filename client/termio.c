@@ -26,7 +26,7 @@ typedef struct Screencell{
 } Screencell;
 
 
-static bool screenlive=false,winchhandlerinstalled=false;
+static bool screenlive=false,keyboardinited=false,sighandlerinstalled=false;
 static bool needresize=false;
 
 static Screencell *screenbuf=NULL,*drawbuf=NULL;
@@ -36,9 +36,18 @@ static Position cursor={0,0};
 static Style curstyle={9,9,false,false};
 
 
-static void winchhandler(int sig){
-	if(sig!=SIGWINCH||!screenlive)return;
-	needresize=true;
+static void sighandler(int sig){
+	if(!screenlive)return;
+	switch(sig){
+		case SIGINT:
+			endkeyboard();
+			endscreen();
+			exit(130); // ^C
+
+		case SIGWINCH:
+			needresize=true;
+			break;
+	}
 }
 
 static Size querytermsize(void){
@@ -79,10 +88,14 @@ void initkeyboard(void){
 	tios.c_cc[VMIN]=1; // read one char at a time
 	tios.c_cc[VTIME]=0; // no timeout on reading, make it a blocking read
 	tcsetattr(0,TCSAFLUSH,&tios);
+
+	keyboardinited=true;
 }
 
 void endkeyboard(void){
+	if(!keyboardinited)return;
 	if(have_tios_bak)tcsetattr(0,TCSAFLUSH,&tios_bak);
+	keyboardinited=false;
 }
 
 void initscreen(void){
@@ -102,18 +115,32 @@ void initscreen(void){
 	}
 	memcpy(drawbuf,screenbuf,termsize.w*termsize.h*sizeof(Screencell));
 
-	if(!winchhandlerinstalled)signal(SIGWINCH,winchhandler);
-	winchhandlerinstalled=true;
+	if(!sighandlerinstalled){
+		signal(SIGWINCH,sighandler);
+		signal(SIGINT,sighandler);
+	}
+	sighandlerinstalled=true;
 	screenlive=true;
 }
 
 void endscreen(void){
+	if(!screenlive)return;
+
 	printf("\x1B[?1049l"); fflush(stdout);
 
 	if(screenbuf)free(screenbuf);
 	if(drawbuf)free(drawbuf);
 
 	screenlive=false;
+}
+
+
+void clearscreen(void){
+	for(int i=0;i<termsize.w*termsize.h;i++){
+		drawbuf[i].c=' ';
+		drawbuf[i].style.fg=drawbuf[i].style.bg=9;
+		drawbuf[i].style.bold=drawbuf[i].style.ul=false;
+	}
 }
 
 
@@ -230,7 +257,7 @@ void tputc(char c){
 	tputcstartx(c,&startx);
 }
 
-__printflike(1,2) void tprint(const char *format,...){
+__printflike(1,2) void tprintf(const char *format,...){
 	if(needresize)resizeterm();
 	char *buf;
 	va_list ap;
@@ -280,6 +307,21 @@ void redraw(void){
 			atxy(screenbuf,x,y).c=atxy(drawbuf,x,y).c;
 		}
 	}
+	printf("\x1B[%d;%dH",cursor.y+1,cursor.x+1);
+	fflush(stdout);
+}
+
+
+void moveto(int x,int y){
+	assert(x>=0&&x<termsize.w&&y>=0&&y<termsize.h);
+	cursor.x=x;
+	cursor.y=y;
+	printf("\x1B[%d;%dH",y+1,x+1);
+}
+
+
+void bel(void){
+	putchar('\007');
 	fflush(stdout);
 }
 
