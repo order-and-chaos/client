@@ -56,6 +56,11 @@ void showmenu(int basex,int basey){
 		for(int i=0;i<nitems;i++){
 			moveto(basex,basey+i);
 			tprintf("> %s",items[i].text);
+			if(items[i].func==NULL){
+				setbold(true);
+				tprintf(" (q)");
+				setbold(false);
+			}
 		}
 		moveto(basex,basey+choice);
 		redraw();
@@ -86,6 +91,9 @@ void showmenu(int basex,int basey){
 						restartmenu=true;
 					} else return;
 					break;
+
+				case 'q':
+					return;
 
 				default:
 					bel();
