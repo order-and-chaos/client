@@ -172,7 +172,6 @@ static int alphabeta(Board *board,int player,int alpha,int beta,int depth){
 	} else {
 		best=INF;
 		for(int p=0;p<N*N;p++){
-			if(depth==MMAB_MAXDEPTH){putchar('*');fflush(stdout);}
 			if(!ISEMPTY(board->b[0]|board->b[1],p))continue;
 			APPLY(board->b[0],p);
 			best=min(best,reduceabs(alphabeta(board,!player,alpha,beta,depth-1),1));
