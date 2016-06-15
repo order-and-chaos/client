@@ -236,25 +236,27 @@ Move calcmove(Board *board,int player){
 	Moveorderitem mvs[3]={{0,0,0},{1,0,0},{5,0,0}};
 	int nmvs=3;*/
 
+	// FILE *f=fopen("log.txt","w");
 	int bestscore=player==ORDER?-INF:INF,bestat=-1,beststone=-1;
 	int score;
 	for(int i=0;i<nmvs;i++){
 		int p=mvs[i].p;
 		int stone=mvs[i].stone;
 
-		printf("%d %c: ",p,"OX"[stone]);
+		// fprintf(f,"%d %c: ",p,"OX"[stone]);
 
 		APPLY(board->b[stone],p);
 		score=alphabeta(board,!player,player==ORDER?bestscore:-INF,player==CHAOS?bestscore:INF,MMAB_MAXDEPTH);
 		// score=alphabeta(board,!player,-INF,INF,MMAB_MAXDEPTH);
 		REMOVE(board->b[stone],p);
-		printf("%d\n",score);
+		// fprintf(f,"%03d (p=%d, s=%c)\n",score,p,"OX"[stone]); fflush(f);
 		if(player==ORDER?score>bestscore:score<bestscore){
 			bestat=p;
 			beststone=stone;
 			bestscore=score;
 		}
 	}
+	// fclose(f);
 
 	Move mv={bestat,beststone};
 	return mv;
