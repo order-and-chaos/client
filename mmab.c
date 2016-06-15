@@ -223,7 +223,7 @@ Move calcmove(Board *board,int player){
 				Move mv={p,stone};
 				return mv;
 			}
-			mvs[nmvs].score=evaluate(board,win);
+			mvs[nmvs].score=evaluate(board,win)*(1-2*player);
 			REMOVE(board->b[stone],p);
 			nmvs++;
 		}
