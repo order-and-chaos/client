@@ -17,6 +17,8 @@ void endkeyboard(void);
 void initscreen(void);
 void endscreen(void);
 
+void installrefreshhandler(bool install); // on ^L
+
 void clearscreen(void);
 
 Size gettermsize(void);
@@ -28,6 +30,7 @@ void setul(bool ul);
 void tputc(char c);
 void tprintf(const char *format,...) __printflike(1,2);
 void redraw(void);
+void redrawfull(void);
 
 void moveto(int x,int y);
 

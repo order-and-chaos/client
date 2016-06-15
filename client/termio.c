@@ -28,6 +28,7 @@ typedef struct Screencell{
 
 static bool screenlive=false,keyboardinited=false,sighandlerinstalled=false;
 static bool needresize=false;
+static bool handlerefresh=false;
 
 static Screencell *screenbuf=NULL,*drawbuf=NULL;
 static Size termsize={0,0};
@@ -136,6 +137,10 @@ void endscreen(void){
 	screenlive=false;
 }
 
+void installrefreshhandler(bool install){
+	handlerefresh=install;
+}
+
 
 void clearscreen(void){
 	for(int i=0;i<termsize.w*termsize.h;i++){
@@ -242,6 +247,7 @@ static void tputcstartx(char c,int *startx){
 
 		default:
 			assert(c>=32&&c<127);
+			atpos(drawbuf,cursor).style=curstyle;
 			atpos(drawbuf,cursor).c=c;
 			cursor.x++;
 			if(cursor.x==termsize.w){
@@ -273,14 +279,11 @@ __printflike(1,2) void tprintf(const char *format,...){
 
 	char *bufit=buf;
 	while(len-->0){
-		atpos(drawbuf,cursor).style=curstyle;
-		const char c=*bufit++;
-		tputcstartx(c,&startx);
+		tputcstartx(*bufit++,&startx);
 	}
 }
 
-void redraw(void){
-	bool full=false;
+static void redrawfullx(bool full){
 	if(needresize){
 		resizeterm();
 		full=true;
@@ -313,12 +316,20 @@ void redraw(void){
 	fflush(stdout);
 }
 
+void redraw(void){
+	redrawfullx(false);
+}
+
+void redrawfull(void){
+	redrawfullx(true);
+}
+
 
 void moveto(int x,int y){
 	assert(x>=0&&x<termsize.w&&y>=0&&y<termsize.h);
 	cursor.x=x;
 	cursor.y=y;
-	printf("\x1B[%d;%dH",y+1,x+1);
+	//printf("\x1B[%d;%dH",y+1,x+1);
 }
 
 
@@ -330,6 +341,10 @@ void bel(void){
 
 int getkey(void){
 	unsigned char c=getchar();
+	if(c==12){
+		redrawfull();
+		return getkey();
+	}
 	if(c!=27&&c<255)return c;
 	if(c==255)return -1; // EOF
 	c=getchar();
