@@ -6,7 +6,7 @@ CFLAGS = -Wall -Wextra -O2 -std=c11 -fwrapv
 TERMLIB = mmab.a
 
 # library used for client
-CLIENTLIB = mmab.a
+CLIENTLIB = mc.a
 
 # library names used for competition
 COMPLIBNAMES = mmab mc rand
