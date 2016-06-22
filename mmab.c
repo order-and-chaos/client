@@ -172,7 +172,6 @@ static int alphabeta(Board *board,int player,int alpha,int beta,int depth){
 	} else {
 		best=INF;
 		for(int p=0;p<N*N;p++){
-			if(depth==MMAB_MAXDEPTH){putchar('*');fflush(stdout);}
 			if(!ISEMPTY(board->b[0]|board->b[1],p))continue;
 			APPLY(board->b[0],p);
 			best=min(best,reduceabs(alphabeta(board,!player,alpha,beta,depth-1),1));
@@ -223,7 +222,7 @@ Move calcmove(Board *board,int player){
 				Move mv={p,stone};
 				return mv;
 			}
-			mvs[nmvs].score=evaluate(board,win);
+			mvs[nmvs].score=evaluate(board,win)*(1-2*player);
 			REMOVE(board->b[stone],p);
 			nmvs++;
 		}
@@ -236,25 +235,27 @@ Move calcmove(Board *board,int player){
 	Moveorderitem mvs[3]={{0,0,0},{1,0,0},{5,0,0}};
 	int nmvs=3;*/
 
+	// FILE *f=fopen("log.txt","w");
 	int bestscore=player==ORDER?-INF:INF,bestat=-1,beststone=-1;
 	int score;
 	for(int i=0;i<nmvs;i++){
 		int p=mvs[i].p;
 		int stone=mvs[i].stone;
 
-		printf("%d %c: ",p,"OX"[stone]);
+		// fprintf(f,"%d %c: ",p,"OX"[stone]);
 
 		APPLY(board->b[stone],p);
 		score=alphabeta(board,!player,player==ORDER?bestscore:-INF,player==CHAOS?bestscore:INF,MMAB_MAXDEPTH);
 		// score=alphabeta(board,!player,-INF,INF,MMAB_MAXDEPTH);
 		REMOVE(board->b[stone],p);
-		printf("%d\n",score);
+		// fprintf(f,"%03d (p=%d, s=%c)\n",score,p,"OX"[stone]); fflush(f);
 		if(player==ORDER?score>bestscore:score<bestscore){
 			bestat=p;
 			beststone=stone;
 			bestscore=score;
 		}
 	}
+	// fclose(f);
 
 	Move mv={bestat,beststone};
 	return mv;

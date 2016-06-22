@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define N 5
+#include "params.h"
 
 #define APPLY(b,i) do {b|=1ULL<<(i);} while(0)
 #define APPLYXY(b,x,y) APPLY(b,N*(y)+(x))
