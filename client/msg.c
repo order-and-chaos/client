@@ -101,7 +101,7 @@ static Message* parse_message(const char *line){
 	msg->args=NULL;
 	msg->nargs=0;
 
-#define FAIL_RETURN do {__asm__("int3\n\t"); free_message(msg); return NULL;} while(0)
+#define FAIL_RETURN do {free_message(msg); return NULL;} while(0)
 
 	line++; //move past the '{'
 
