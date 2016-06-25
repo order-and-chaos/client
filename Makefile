@@ -11,6 +11,10 @@ CLIENTLIB = mc.a
 # library names used for competition
 COMPLIBNAMES = mmab mc rand
 
+# other library locations
+NOPOLL_INC = $(HOME)/prefix/include/nopoll
+NOPOLL_LIB = $(HOME)/prefix/lib
+
 
 # --------------------
 
@@ -59,7 +63,7 @@ winmasks.h: genwinmasks
 
 
 client/client: $(wildcard client/*.c client/*.h) $(CLIENTLIB)
-	$(CC) $(CFLAGS) -o $@ $(filter-out %.h,$^)
+	$(CC) $(CFLAGS) -I$(NOPOLL_INC) -L$(NOPOLL_LIB) -lnopoll -o $@ $(filter-out %.h,$^)
 
 
 competition/competition: $(wildcard competition/*.c competition/*.h)

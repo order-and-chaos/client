@@ -332,6 +332,28 @@ void moveto(int x,int y){
 	//printf("\x1B[%d;%dH",y+1,x+1);
 }
 
+typedef struct Llitem{
+	Position pos;
+	struct Llitem *next;
+} Llitem;
+static Llitem *cursorstack=NULL;
+
+void pushcursor(void){
+	Llitem *item=malloc(sizeof(Llitem));
+	assert(item);
+	item->pos=cursor;
+	item->next=cursorstack;
+	cursorstack=item;
+}
+
+void popcursor(void){
+	assert(cursorstack);
+	Llitem *item=cursorstack;
+	cursorstack=item->next;
+	cursor=item->pos;
+	free(item);
+}
+
 
 void bel(void){
 	putchar('\007');

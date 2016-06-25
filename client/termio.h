@@ -12,6 +12,11 @@ typedef struct Style{
 } Style;
 
 
+#ifndef __printflike
+#define __printflike(last,start) __attribute__((format (printf,last,start)))
+#endif
+
+
 void initkeyboard(void);
 void endkeyboard(void);
 void initscreen(void);
@@ -33,6 +38,8 @@ void redraw(void);
 void redrawfull(void);
 
 void moveto(int x,int y);
+void pushcursor(void);
+void popcursor(void);
 
 void bel(void);
 
