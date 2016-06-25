@@ -5,10 +5,6 @@
 #include <assert.h>
 
 #include "termio.h"
-#include "widget.h"
-#include "ws.h"
-#include "msg.h"
-#include "util.h"
 #include "multiplayer.h"
 #include "../ai.h"
 #include "../params.h"
