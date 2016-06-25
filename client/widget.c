@@ -1,10 +1,12 @@
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
 #include "widget.h"
 #include "termio.h"
+#include "util.h"
 
 typedef struct Circbuf{
 	char **data;
@@ -130,6 +132,17 @@ void lgw_add(Logwidget *lgw,const char *line){
 		line+=copylen;
 	}
 	lgw_redraw(lgw);
+}
+
+__printflike(2,3) void lgw_addf(Logwidget *lgw,const char *format,...){
+	char *str;
+	va_list ap;
+	va_start(ap,format);
+	vasprintf(&str,format,ap);
+	va_end(ap);
+	if(!str)outofmem();
+	lgw_add(lgw,str);
+	free(str);
 }
 
 void lgw_clear(Logwidget *lgw){

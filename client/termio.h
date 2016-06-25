@@ -2,6 +2,8 @@
 
 #include <stdbool.h>
 
+#include "printflike.h"
+
 typedef struct Size{
 	int w,h;
 } Size;
@@ -10,11 +12,6 @@ typedef struct Style{
 	int fg,bg;
 	bool bold,ul;
 } Style;
-
-
-#ifndef __printflike
-#define __printflike(last,start) __attribute__((format (printf,last,start)))
-#endif
 
 
 void initkeyboard(void);
