@@ -14,14 +14,25 @@
 #define SERVERPORT "1337"
 
 
-typedef struct Multistate{
+//state shared between callbacks
+typedef struct Multiplayerstate{
 	char *nickname;
 	Board *board;
-	Logwidget *lgw;
 	char *roomid;
-} Multistate;
+	Logwidget *lgw;
+	Menuwidget *mw;
+} Multiplayerstate;
 
-Multistate mstate;
+static Multiplayerstate mstate;
+
+
+void startroom(void){
+	lgw_add(mstate.lgw,"Creating room...");
+}
+
+void joinroom(void){
+	lgw_add(mstate.lgw,"joinroom");
+}
 
 static void pingcb(ws_conn *conn,const Message *msg){
 	(void)conn;
@@ -29,6 +40,24 @@ static void pingcb(ws_conn *conn,const Message *msg){
 		lgw_addf(mstate.lgw,"Got '%s' in reply to ping instead of pong!\n",msg->typ);
 		redraw();
 	}
+}
+
+static Menuitem menu1items[]={
+	{"Start new room",'s',startroom},
+	{"Join existing room",'e',joinroom},
+	{"Quit",'q',NULL}
+};
+static Menudata menu1data={3,menu1items};
+
+static void menu1_redraw(void){
+	clearscreen();
+	moveto(0,0);
+	setbold(true);
+	tprintf("Order & Chaos -- Multiplayer");
+	setbold(false);
+
+	lgw_redraw(mstate.lgw);
+	if(mstate.mw)menu_redraw(mstate.mw);
 }
 
 static void getnickcb(ws_conn *conn,const Message *msg){
@@ -40,6 +69,10 @@ static void getnickcb(ws_conn *conn,const Message *msg){
 	asprintf(&mstate.nickname,"%s",msg->args[0]);
 	if(!mstate.nickname)outofmem();
 	lgw_addf(mstate.lgw,"Your nickname: %s",msg->args[0]);
+	redraw();
+
+	mstate.mw=menu_make(2,2,&menu1data);
+	if(!mstate.mw)outofmem();
 	redraw();
 }
 
@@ -63,10 +96,29 @@ static void fdhandler(ws_conn *conn,const fd_set *readfds,const fd_set *writefds
 	(void)conn;
 	(void)writefds;
 	if(!FD_ISSET(0,readfds))return;
-	int c=getkey();
-	lgw_addf(mstate.lgw,"%d",c);
+	int key=getkey();
+	if(!mstate.mw){
+		bel();
+		return;
+	}
+	Menukey ret=menu_handlekey(mstate.mw,key);
+	switch(ret){
+		case MENUKEY_HANDLED:
+			break;
+
+		case MENUKEY_IGNORED:
+			bel();
+			break;
+
+		case MENUKEY_QUIT:
+			ws_close(conn);
+			break;
+
+		case MENUKEY_CALLED:
+			menu1_redraw();
+			break;
+	}
 	redraw();
-	if(c=='q')ws_close(conn);
 }
 
 static void timeouthandler(ws_conn *conn){
@@ -82,9 +134,10 @@ void startmultiplayer(void){
 
 	mstate.nickname=NULL;
 	mstate.board=NULL;
+	mstate.roomid=NULL;
 	mstate.lgw=lgw_make(35,0,45,15);
 	if(!mstate.lgw)outofmem();
-	mstate.roomid=NULL;
+	mstate.mw=NULL;
 
 	lgw_add(mstate.lgw,"Connecting...");
 	redraw();
@@ -101,6 +154,7 @@ void startmultiplayer(void){
 	if(!conn){
 		ws_destroy(ctx);
 		lgw_addf(mstate.lgw,"Could not connect to server! (%s:%s)",SERVERHOST,SERVERPORT);
+		lgw_add(mstate.lgw,"Press a key to return.");
 		redraw();
 		getkey();
 		return;

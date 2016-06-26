@@ -64,6 +64,23 @@ struct Logwidget{
 };
 
 
+static void lgw_drawborder(Logwidget *lgw){
+	moveto(lgw->x,lgw->y);
+	tputc('+');
+	for(int i=1;i<lgw->w-1;i++)tputc('-');
+	tputc('+');
+	for(int i=1;i<lgw->h-1;i++){
+		moveto(lgw->x,lgw->y+i);
+		tputc('|');
+		moveto(lgw->x+lgw->w-1,lgw->y+i);
+		tputc('|');
+	}
+	moveto(lgw->x,lgw->y+lgw->h-1);
+	tputc('+');
+	for(int i=1;i<lgw->w-1;i++)tputc('-');
+	tputc('+');
+}
+
 Logwidget* lgw_make(int x,int y,int w,int h){
 	assert(x>=0&&y>=0);
 	assert(w>=3&&h>=3);
@@ -82,27 +99,16 @@ Logwidget* lgw_make(int x,int y,int w,int h){
 	lgw->nexty=0;
 
 	pushcursor();
-	moveto(x,y);
-	tputc('+');
-	for(int i=1;i<w-1;i++)tputc('-');
-	tputc('+');
-	for(int i=1;i<h-1;i++){
-		moveto(x,y+i);
-		tputc('|');
-		moveto(x+w-1,y+i);
-		tputc('|');
-	}
-	moveto(x,y+h-1);
-	tputc('+');
-	for(int i=1;i<w-1;i++)tputc('-');
-	tputc('+');
+	lgw_drawborder(lgw);
 	popcursor();
 
 	return lgw;
 }
 
-static void lgw_redraw(Logwidget *lgw){
+void lgw_redraw(Logwidget *lgw){
 	pushcursor();
+	lgw_drawborder(lgw);
+
 	int len=cb_length(lgw->cb);
 	int i;
 	for(i=0;i<len;i++){
@@ -148,4 +154,80 @@ __printflike(2,3) void lgw_addf(Logwidget *lgw,const char *format,...){
 void lgw_clear(Logwidget *lgw){
 	cb_clear(lgw->cb);
 	lgw_redraw(lgw);
+}
+
+
+
+struct Menuwidget{
+	int x,y,choice;
+	const Menudata *data;
+};
+
+Menuwidget* menu_make(int basex,int basey,const Menudata *data){
+	Menuwidget *mw=malloc(sizeof(Menuwidget));
+	if(!mw)return NULL;
+	mw->x=basex;
+	mw->y=basey;
+	mw->data=data;
+	menu_redraw(mw);
+	return mw;
+}
+
+void menu_destroy(Menuwidget *mw){
+	assert(mw);
+	free(mw);
+}
+
+void menu_redraw(Menuwidget *mw){
+	assert(mw);
+	for(int i=0;i<mw->data->nitems;i++){
+		moveto(mw->x,mw->y+i);
+		tprintf("> %s",mw->data->items[i].text);
+		if(mw->data->items[i].hotkey!='\0'){
+			tputc(' ');
+			tputc('(');
+			setbold(true);
+			tputc(mw->data->items[i].hotkey);
+			setbold(false);
+			tputc(')');
+		}
+	}
+	moveto(mw->x,mw->y+mw->choice);
+}
+
+Menukey menu_handlekey(Menuwidget *mw,int key){
+	switch(key){
+		case 'k': case KEY_UP:
+			if(mw->choice>0){
+				mw->choice--;
+				menu_redraw(mw);
+			} else bel();
+			return MENUKEY_HANDLED;
+
+		case 'j': case KEY_DOWN:
+			if(mw->choice<mw->data->nitems-1){
+				mw->choice++;
+				menu_redraw(mw);
+			} else bel();
+			return MENUKEY_HANDLED;
+
+		case '\n':
+			if(mw->data->items[mw->choice].func){
+				mw->data->items[mw->choice].func();
+				return MENUKEY_CALLED;
+			} else return MENUKEY_QUIT;
+
+		default: {
+			int i;
+			for(i=0;i<mw->data->nitems;i++){
+				if(mw->data->items[i].hotkey==key)break;
+			}
+			if(i==mw->data->nitems)return MENUKEY_IGNORED;
+			else {
+				if(mw->data->items[i].func==NULL)return MENUKEY_QUIT;
+				mw->data->items[i].func();
+				return MENUKEY_CALLED;
+			}
+		}
+	}
 }

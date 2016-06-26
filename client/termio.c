@@ -5,7 +5,9 @@
 #include <string.h>
 #include <termios.h>
 #include <signal.h>
+#include <unistd.h>
 #include <assert.h>
+#include <sys/select.h>
 #include <sys/ioctl.h>
 
 #include "termio.h"
@@ -291,6 +293,7 @@ static void redrawfullx(bool full){
 	int x,y;
 	Style st;
 	bool first=true;
+	printf("\x1B[?25l"); //civis
 	for(y=0;y<termsize.h;y++){
 		bool shouldmove=true;
 		for(x=0;x<termsize.w;x++){
@@ -313,6 +316,7 @@ static void redrawfullx(bool full){
 		}
 	}
 	printf("\x1B[%d;%dH",cursor.y+1,cursor.x+1);
+	printf("\x1B[?12;25h"); //cvvis
 	fflush(stdout);
 }
 
@@ -362,19 +366,36 @@ void bel(void){
 
 
 int getkey(void){
-	unsigned char c=getchar();
-	if(c==12){
+	static int bufchar=-1; //-1 is nothing, 0<=x<=255 is char
+	unsigned char c;
+	if(bufchar!=-1){
+		c=bufchar;
+		bufchar=-1;
+	} else if(read(0,&c,1)==0)return -1; //EOF
+	if(c==12&&handlerefresh){
 		redrawfull();
 		return getkey();
 	}
-	if(c!=27&&c<255)return c;
-	if(c==255)return -1; // EOF
-	c=getchar();
+	if(c!=27)return c;
+
+	//escape key was pressed, now listen for escape sequence
+	fd_set inset;
+	FD_ZERO(&inset);
+	FD_SET(0,&inset);
+	struct timeval tv;
+	tv.tv_sec=0;
+	tv.tv_usec=100000; //100ms escape timeout
+	int ret=select(1,&inset,NULL,NULL,&tv);
+
+	if(ret==0)return 27; //just escape key
+	// if(ret==-1)do_something(); //in case of select error, we just continue reading
+	if(read(0,&c,1)==0)return -1; //EOF
 	if(c!='['){
-		ungetc(c,stdin);
+		bufchar=c;
 		return 27;
 	}
-	switch(getchar()){
+	if(read(0,&c,1)==0)return -1; //EOF
+	switch(c){
 		case 'A': return KEY_UP;
 		case 'B': return KEY_DOWN;
 		case 'C': return KEY_RIGHT;
