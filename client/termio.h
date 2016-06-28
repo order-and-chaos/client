@@ -2,8 +2,6 @@
 
 #include <stdbool.h>
 
-#include "printflike.h"
-
 typedef struct Size{
 	int w,h;
 } Size;
@@ -30,7 +28,7 @@ void setbg(int bg);
 void setbold(bool bold);
 void setul(bool ul);
 void tputc(char c);
-void tprintf(const char *format,...) __printflike(1,2);
+void tprintf(const char *format,...) __attribute__((format (printf, 1, 2)));
 void redraw(void);
 void redrawfull(void);
 

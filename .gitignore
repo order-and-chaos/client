@@ -5,3 +5,4 @@ winmasks.h
 *.a
 *.o
 *.dSYM/
+*.so

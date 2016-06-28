@@ -63,11 +63,11 @@ winmasks.h: genwinmasks
 
 
 client/client: $(wildcard client/*.c client/*.h) $(CLIENTLIB)
-	$(CC) $(CFLAGS) -I$(NOPOLL_INC) -L$(NOPOLL_LIB) -lnopoll -o $@ $(filter-out %.h,$^)
+	$(CC) $(CFLAGS) -I$(NOPOLL_INC) -o $@ $(filter-out %.h,$^) $(NOPOLL_LIB)/libnopoll.a -lssl -lcrypto
 
 
 competition/competition: $(wildcard competition/*.c competition/*.h)
-	$(CC) $(CFLAGS) -o $@ $(filter-out %.h,$^)
+	$(CC) $(CFLAGS) -ldl -o $@ $(filter-out %.h,$^)
 
 competition/%.$(DYLIB_EXT): %.c winmasks.h $(wildcard *.h)
 	$(CC) $(CFLAGS) $(DYLIB_FLAGS) -o $@ $(filter-out %.h,$^)

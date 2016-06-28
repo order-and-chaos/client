@@ -1,3 +1,4 @@
+#define _GNU_SOURCE  // asprintf
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -267,7 +268,7 @@ void tputc(char c){
 	tputcstartx(c,&startx);
 }
 
-__printflike(1,2) void tprintf(const char *format,...){
+__attribute__((format (printf, 1,2))) void tprintf(const char *format,...){
 	if(needresize)resizeterm();
 	char *buf;
 	va_list ap;

@@ -1,3 +1,4 @@
+#define _GNU_SOURCE  // asprintf
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -90,7 +91,8 @@ Llist* libsfromdir(const char *dirpath){
 	struct dirent *dire;
 	Llist *handles=NULL;
 	while((dire=readdir(dirp))!=NULL){
-		if(dire->d_namlen>suflen&&strcmp(dire->d_name+(dire->d_namlen-suflen),suffix)==0){
+		int namlen=strlen(dire->d_name);
+		if(namlen>suflen&&strcmp(dire->d_name+(namlen-suflen),suffix)==0){
 			char *str;
 			asprintf(&str,"%s/%s",dirpath,dire->d_name);
 			assert(str);
@@ -186,8 +188,11 @@ void runmatch(Playerdata *p1,Playerdata *p2){
 	free(bd[0]);
 	free(bd[1]);
 }
-
+#ifdef __APPLE__
 int playerindexorder(void *players,const void *a,const void *b){
+#else
+int playerindexorder(const void *a,const void *b,void *players){
+#endif
 	Playerdata *pl=(Playerdata*)players;
 	return pl[*(int*)b].score-pl[*(int*)a].score;
 }
@@ -200,7 +205,11 @@ void printscoretable(int nplayers,Playerdata *players){
 
 	int indices[nplayers];
 	for(int i=0;i<nplayers;i++)indices[i]=i;
+#ifdef __APPLE__
 	qsort_r(indices,nplayers,sizeof(int),players,playerindexorder);
+#else
+	qsort_r(indices,nplayers,sizeof(int),playerindexorder,players);
+#endif
 
 	printf("Name");
 	for(int i=4;i<maxlen;i++)putchar(' ');
