@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "multiplayer.h"
 #include "termio.h"
@@ -17,6 +18,7 @@
 
 //state shared between callbacks
 typedef struct Multiplayerstate{
+	ws_conn *conn;
 	char *nickname;
 	Board *board;
 	char *roomid;
@@ -27,11 +29,26 @@ typedef struct Multiplayerstate{
 static Multiplayerstate mstate;
 
 
-void startroom(void){
-	lgw_add(mstate.lgw,"Creating room...");
+static void makeroomcb(ws_conn *conn,const Message *msg){
+	if(strcmp(msg->typ,"ok")!=0){
+		lgw_addf(mstate.lgw,"makeroom returned message with type '%s'",msg->typ);
+		msg_send(conn,"makeroom",makeroomcb,0);
+		return;
+	}
+	assert(msg->nargs==1);
+
+	asprintf(&mstate.roomid,"%s",msg->args[0]);
+	if(!mstate.roomid)outofmem();
+	lgw_addf(mstate.lgw,"Room id: %s",mstate.roomid);
+	redraw();
 }
 
-void joinroom(void){
+static void startroom(void){
+	lgw_add(mstate.lgw,"Creating room...");
+	msg_send(mstate.conn,"makeroom",makeroomcb,0);
+}
+
+static void joinroom(void){
 	lgw_add(mstate.lgw,"joinroom");
 }
 
@@ -160,6 +177,8 @@ void startmultiplayer(void){
 		getkey();
 		return;
 	}
+
+	mstate.conn=conn;
 
 	lgw_add(mstate.lgw,"Connected.");
 	redraw();
