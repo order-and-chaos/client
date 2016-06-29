@@ -56,7 +56,7 @@ void startsingleplayer(void){
 
 		moveto(2+2*curx,2+cury);
 		redraw();
-		int key=getkey();
+		int key=tgetkey();
 		int stone;
 		switch(key){
 			case 'q':
@@ -65,7 +65,7 @@ void startsingleplayer(void){
 				tprintf("Really quit? [y/N] ");
 				setbold(false);
 				redraw();
-				key=getkey();
+				key=tgetkey();
 				if(key=='y'||key=='Y')return;
 				moveto(0,N+3);
 				tprintf("                  ");
@@ -119,5 +119,5 @@ void startsingleplayer(void){
 	else tprintf("The AI (%s) won! Better next time...",plstr);
 	setbold(false);
 	redraw();
-	getkey();
+	tgetkey();
 }

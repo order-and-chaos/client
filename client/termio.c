@@ -366,7 +366,7 @@ void bel(void){
 }
 
 
-int getkey(void){
+int tgetkey(void){
 	static int bufchar=-1; //-1 is nothing, 0<=x<=255 is char
 	unsigned char c;
 	if(bufchar!=-1){
@@ -375,7 +375,7 @@ int getkey(void){
 	} else if(read(0,&c,1)==0)return -1; //EOF
 	if(c==12&&handlerefresh){
 		redrawfull();
-		return getkey();
+		return tgetkey();
 	}
 	if(c!=27)return c;
 
@@ -402,6 +402,58 @@ int getkey(void){
 		case 'C': return KEY_RIGHT;
 		case 'D': return KEY_LEFT;
 		default:
-			return getkey(); // unrecognised escape sequence; really need to handle this better
+			return tgetkey(); // unrecognised escape sequence; really need to handle this better
 	}
+}
+
+// TODO: Better editing capabilities
+char* tgetline(void){
+	int bufsz=64,buflen=0;
+	char *buf=malloc(bufsz);
+	assert(buf);
+	buf[0]='\0';
+	while(true){
+		int key=tgetkey();
+		switch(key){
+		case KEY_ESC:
+			free(buf);
+			return NULL;
+
+		case KEY_BACKSPACE:
+		case KEY_DELETE:
+			fflush(stdout);
+			if(buflen>0){
+				printf("\x1B[D \x1b[D");
+				fflush(stdout);
+				buf[buflen]='\0';
+				buflen--;
+			} else bel();
+			break;
+
+		case KEY_LF:
+		case KEY_CR:
+			printf("\x1B[%dD",buflen);
+			for(int i=0;i<buflen;i++)putchar(' ');
+			printf("\x1B[%dD",buflen);
+			fflush(stdout);
+			return buf;
+			break;
+
+		default:
+			if(key>=32&&key<127){
+				if(buflen==bufsz-1){
+					bufsz*=2;
+					char *newbuf=realloc(buf,bufsz);
+					assert(newbuf);
+					buf=newbuf;
+				}
+				buf[buflen++]=(char)key;
+				buf[buflen]='\0';
+				putchar((char)key);
+				fflush(stdout);
+			} else bel();
+			break;
+		}
+	}
+	return buf;
 }

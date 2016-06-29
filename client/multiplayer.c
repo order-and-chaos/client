@@ -114,7 +114,7 @@ static void fdhandler(ws_conn *conn,const fd_set *readfds,const fd_set *writefds
 	(void)conn;
 	(void)writefds;
 	if(!FD_ISSET(0,readfds))return;
-	int key=getkey();
+	int key=tgetkey();
 	if(!mstate.mw){
 		bel();
 		return;
@@ -164,7 +164,7 @@ void startmultiplayer(void){
 	if(!ctx){
 		lgw_add(mstate.lgw,"Could not initialise websocket context!");
 		redraw();
-		getkey();
+		tgetkey();
 		return;
 	}
 
@@ -174,7 +174,7 @@ void startmultiplayer(void){
 		lgw_addf(mstate.lgw,"Could not connect to server! (%s:%s)",SERVERHOST,SERVERPORT);
 		lgw_add(mstate.lgw,"Press a key to return.");
 		redraw();
-		getkey();
+		tgetkey();
 		return;
 	}
 

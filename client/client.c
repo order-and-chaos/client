@@ -36,7 +36,7 @@ int main(void){
 	bool shouldquit=false;
 	while(!shouldquit){
 		redraw();
-		int key=getkey();
+		int key=tgetkey();
 		Menukey ret=menu_handlekey(mw,key);
 		switch(ret){
 			case MENUKEY_HANDLED:

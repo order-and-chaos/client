@@ -26,7 +26,7 @@ void show_menu(int basex,int basey,const Menudata *data){
 
 		bool restartmenu=false;
 		while(!restartmenu){
-			int key=getkey();
+			int key=tgetkey();
 			switch(key){
 				case 'j': case KEY_DOWN:
 					if(choice<data->nitems-1){
