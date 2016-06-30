@@ -146,6 +146,15 @@ static void makeroomcb(ws_conn *conn,const Message *msg){
 	moveto(0,3);
 	tprintf("Your room id: %s\n\nWaiting for other player...",mstate.roomid);
 	redraw();
+	pushcursor();
+	moveto(0,6);
+	tputc('(');
+	setbold(true);
+	tputc('q');
+	setbold(false);
+	tprintf(" to cancel)");
+	popcursor();
+	redraw();
 
 	mstate.aux_keyhandler=makeroomcb__cancel_q;
 }
