@@ -6,6 +6,7 @@
 
 #include "multiplayer.h"
 #include "termio.h"
+#include "tprintboard.h"
 #include "widget.h"
 #include "ws.h"
 #include "msg.h"
@@ -101,7 +102,9 @@ static void log_message(const Message *msg,const char *prefix){
 
 static void beginrealgame(void){
 	mstate.board=makeboard();
-	
+	moveto(2,2);
+	tprintboard(mstate.board);
+	redraw();
 }
 
 
