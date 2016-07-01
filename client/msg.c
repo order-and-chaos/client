@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <sys/select.h>
+#include <errno.h>
 #include <assert.h>
 
 #include "msg.h"
@@ -102,7 +103,7 @@ static Message* parse_message(const char *line){
 	msg->args=NULL;
 	msg->nargs=0;
 
-#define FAIL_RETURN do {free_message(msg); return NULL;} while(0)
+#define FAIL_RETURN do {free_message(msg); __asm("int3\n\r"); return NULL;} while(0)
 
 	line++; //move past the '{'
 
@@ -156,6 +157,7 @@ static Message* parse_message(const char *line){
 				nargs++;
 				if(line[i]==']')break;
 				if(line[i]!=',')FAIL_RETURN;
+				i++;
 			}
 
 			//nargs has been calculated, now collect actual args
@@ -288,15 +290,20 @@ void msg_runloop(
 	while(true){
 		if(!ws_isopen(conn))break;
 		fd_set rdset,wrset;
-		FD_ZERO(&rdset);
-		FD_ZERO(&wrset);
-		struct timeval *timeout=populate_fdsets(&rdset,&wrset);
-		FD_SET(connsock,&rdset);
-		int ret=select(FD_SETSIZE,&rdset,&wrset,NULL,timeout); //TODO: improve nfds estimate
-		if(timeout)free(timeout);
-		if(ret==-1){
-			perror("select");
-			exit(1);
+		int ret;
+		while(true){
+			FD_ZERO(&rdset);
+			FD_ZERO(&wrset);
+			struct timeval *timeout=populate_fdsets(&rdset,&wrset);
+			FD_SET(connsock,&rdset);
+			ret=select(FD_SETSIZE,&rdset,&wrset,NULL,timeout); //TODO: improve nfds estimate
+			if(timeout)free(timeout);
+			if(ret==-1){
+				if(errno==EINTR)continue;
+				perror("select");
+				exit(1);
+			}
+			break;
 		}
 		if(ret==0){
 			if(timeouthandler)timeouthandler(conn);

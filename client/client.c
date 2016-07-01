@@ -11,6 +11,8 @@
 #include "util.h"
 
 
+extern const char *serverhost;
+
 static Menuitem mainmenuitems[]={
 	{"Multiplayer online",'m',startmultiplayer},
 	{"Single player versus AI",'s',startsingleplayer},
@@ -18,13 +20,17 @@ static Menuitem mainmenuitems[]={
 };
 static Menudata mainmenudata={3,mainmenuitems};
 
-int main(void){
+int main(int argc,char **argv){
+	if(argc==2){
+		serverhost=argv[1];
+	}
+
 	initkeyboard();
 	atexit(endkeyboard);
 	initscreen();
 	atexit(endscreen);
 
-	installrefreshhandler(true);
+	installCLhandler(true);
 
 	moveto(0,0);
 	setbold(true);

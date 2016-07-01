@@ -28,10 +28,11 @@ typedef struct Screencell{
 	Style style;
 } Screencell;
 
-
 static bool screenlive=false,keyboardinited=false,sighandlerinstalled=false;
 static bool needresize=false;
 static bool handlerefresh=false;
+
+static void (*redrawhandler)(bool)=NULL;
 
 static Screencell *screenbuf=NULL,*drawbuf=NULL;
 static Size termsize={0,0};
@@ -140,8 +141,12 @@ void endscreen(void){
 	screenlive=false;
 }
 
-void installrefreshhandler(bool install){
+void installCLhandler(bool install){
 	handlerefresh=install;
+}
+
+void installredrawhandler(void (*handler)(bool)){
+	redrawhandler=handler;
 }
 
 
@@ -291,6 +296,7 @@ static void redrawfullx(bool full){
 		resizeterm();
 		full=true;
 	}
+	if(redrawhandler)redrawhandler(full);
 	int x,y;
 	Style st;
 	bool first=true;
@@ -331,7 +337,10 @@ void redrawfull(void){
 
 
 void moveto(int x,int y){
-	assert(x>=0&&x<termsize.w&&y>=0&&y<termsize.h);
+	if(x>=termsize.w)x=termsize.w-1;
+	if(x<0)x=0;
+	if(y>=termsize.h)y=termsize.h-1;
+	if(y<0)y=0;
 	cursor.x=x;
 	cursor.y=y;
 	//printf("\x1B[%d;%dH",y+1,x+1);

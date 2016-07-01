@@ -17,7 +17,8 @@ void endkeyboard(void);
 void initscreen(void);
 void endscreen(void);
 
-void installrefreshhandler(bool install); // on ^L
+void installCLhandler(bool install); // on ^L
+void installredrawhandler(void (*handler)(bool)); //arg: whether full redraw
 
 void clearscreen(void);
 

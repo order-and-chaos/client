@@ -12,7 +12,7 @@
 #include "util.h"
 #include "../ai.h"
 
-#define SERVERHOST "localhost"
+const char *serverhost="localhost";
 #define SERVERPORT "1337"
 
 
@@ -23,9 +23,15 @@ typedef struct Multiplayerstate{
 	char *oppnick;
 	Board *board;
 	char *roomid;
+
 	Logwidget *lgw;
 	Menuwidget *mw;
+
 	void (*aux_keyhandler)(int); // Called by fdhandler when lone key pressed (if !=NULL); should reinstall itself if necessary
+
+	bool playera;
+	bool gamestarted;
+	int gamerole;
 } Multiplayerstate;
 
 static Multiplayerstate mstate;
@@ -36,9 +42,15 @@ static void mstate_initialise(void){
 	mstate.oppnick=NULL;
 	mstate.board=NULL;
 	mstate.roomid=NULL;
+
 	mstate.lgw=NULL;
 	mstate.mw=NULL;
+
 	mstate.aux_keyhandler=NULL;
+
+	mstate.playera=false;
+	mstate.gamestarted=false;
+	mstate.gamerole=-1; //neither ORDER nor CHAOS
 }
 
 
@@ -86,8 +98,23 @@ static void log_message(const Message *msg,const char *prefix){
 	free(line);
 }
 
+
+static void beginrealgame(void){
+	mstate.board=makeboard();
+	
+}
+
+
+static void startgamecb(ws_conn *conn,const Message *msg){
+	(void)conn;
+	(void)msg;
+	//lgw_add(mstate.lgw,"startgamecb");
+	//tgetkey();
+	//redraw();
+}
+
 static void start_game(void){
-	lgw_addf(mstate.lgw,"Trying to start a game right here...");
+	lgw_addf(mstate.lgw,"Starting a game...");
 	if(mstate.aux_keyhandler==makeroomcb__cancel_q){
 		mstate.aux_keyhandler=NULL;
 	}
@@ -96,6 +123,14 @@ static void start_game(void){
 		mstate.mw=NULL;
 	}
 	redraw_mw_back();
+	redraw();
+
+	if(mstate.playera){
+		lgw_add(mstate.lgw,"playera");
+		msg_send(mstate.conn,"startgame",startgamecb,0);
+	} else {
+		lgw_add(mstate.lgw,"!playera");
+	}
 	redraw();
 }
 
@@ -156,14 +191,31 @@ static void makeroomcb(ws_conn *conn,const Message *msg){
 	popcursor();
 	redraw();
 
+	mstate.playera=true;
+
 	mstate.aux_keyhandler=makeroomcb__cancel_q;
 }
 
 static void joinroomcb(ws_conn *conn,const Message *msg){
 	(void)conn;
 	log_message(msg,"joinroomcb:");
-	//lgw_addf(mstate.lgw,"joinroomcb: typ=%s nargs=%d",msg->typ,msg->nargs);
-	redraw();
+
+	if(strcmp(msg->typ,"error")==0){
+		lgw_addf(mstate.lgw,"Join error: %s",msg->args[0]);
+		return;
+	}
+
+	menu_destroy(mstate.mw);
+	mstate.mw=NULL;
+	redrawfull();
+
+	mstate.playera=msg->nargs==0;
+	if(msg->nargs==1){
+		lgw_addf(mstate.lgw,"Opponent: %s",msg->args[0]);
+		asprintf(&mstate.oppnick,"%s",msg->args[0]);
+		if(!mstate.oppnick)outofmem();
+		start_game();
+	}
 }
 
 static void startroom(void){
@@ -228,11 +280,14 @@ static struct timeval* populate_fdsets(fd_set *readfds,fd_set *writefds){
 
 static void msghandler(ws_conn *conn,const Message *msg){
 	(void)conn;
-	if(strcmp(msg->typ,"joinroom")==0&&msg->nargs==1){
+	if(!mstate.gamestarted&&strcmp(msg->typ,"joinroom")==0&&msg->nargs==2){
 		lgw_addf(mstate.lgw,"Opponent: %s",msg->args[0]);
 		asprintf(&mstate.oppnick,"%s",msg->args[0]);
 		if(!mstate.oppnick)outofmem();
 		start_game();
+	} else if(!mstate.gamestarted&&strcmp(msg->typ,"startgame")==0&&msg->nargs==2){
+		mstate.gamestarted=true;
+		beginrealgame();
 	} else {
 		lgw_addf(mstate.lgw,"Unsollicited message received: id=%d typ='%s' nargs=%d",msg->id,msg->typ,msg->nargs);
 		redraw();
@@ -303,10 +358,10 @@ void startmultiplayer(void){
 		return;
 	}
 
-	ws_conn *conn=ws_connect(ctx,SERVERHOST,SERVERPORT,"/ws");
+	ws_conn *conn=ws_connect(ctx,serverhost,SERVERPORT,"/ws");
 	if(!conn){
 		ws_destroy(ctx);
-		lgw_addf(mstate.lgw,"Could not connect to server! (%s:%s)",SERVERHOST,SERVERPORT);
+		lgw_addf(mstate.lgw,"Could not connect to server! (%s:%s)",serverhost,SERVERPORT);
 		lgw_add(mstate.lgw,"Press a key to return.");
 		redraw();
 		tgetkey();
