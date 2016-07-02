@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <assert.h>
 
 #include "multiplayer.h"
@@ -338,6 +339,15 @@ static void timeouthandler(ws_conn *conn){
 	msg_send(conn,"ping",pingcb,0);
 }
 
+static void signalhandler(int sig){
+	if(sig!=SIGINT)return;
+	if(mstate.conn){
+		ws_close(mstate.conn);
+		mstate.conn=NULL;
+	}
+	exit(130);
+}
+
 void startmultiplayer(void){
 	clearscreen();
 	moveto(0,0);
@@ -370,6 +380,8 @@ void startmultiplayer(void){
 		tgetkey();
 		return;
 	}
+
+	signal(SIGINT,signalhandler);
 
 	mstate.conn=conn;
 
