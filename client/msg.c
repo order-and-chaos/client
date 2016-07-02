@@ -206,7 +206,7 @@ static Message* parse_message(const char *line){
 }
 
 
-bool msg_send(ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Message*),int nargs,...){
+bool msg_send_x(int id,ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Message*),int nargs,va_list ap){
 	assert(typ);
 	assert(nargs>=0);
 
@@ -215,11 +215,8 @@ bool msg_send(ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Messa
 	char **args=NULL; //already json_escape'd
 	int argslen=2; //brackets
 	if(nargs>0){
-		va_list ap;
-		va_start(ap,nargs);
 		args=(char**)malloc(nargs*sizeof(char*));
 		if(args==NULL){
-			va_end(ap);
 			free(esc);
 			return false;
 		}
@@ -234,7 +231,6 @@ bool msg_send(ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Messa
 			}
 			argslen+=3+strlen(args[i]); //comma, quotes, string
 		}
-		va_end(ap);
 		argslen--; //remove extra comma
 	}
 
@@ -257,7 +253,6 @@ bool msg_send(ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Messa
 	argsstr[cursor++]=']';
 	argsstr[cursor]='\0';
 
-	int id=genid();
 	char *res;
 	asprintf(&res,"{\"id\":%d,\"type\":\"%s\",\"args\":%s}\n",id,esc,argsstr);
 	free(argsstr);
@@ -274,6 +269,22 @@ bool msg_send(ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Messa
 		hash_insert(id,cb);
 	}
 	return true;
+}
+
+bool msg_send(ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Message*),int nargs,...){
+	va_list ap;
+	va_start(ap,nargs);
+	bool ret=msg_send_x(genid(),conn,typ,cb,nargs,ap);
+	va_end(ap);
+	return ret;
+}
+
+bool msg_reply(int id,ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Message*),int nargs,...){
+	va_list ap;
+	va_start(ap,nargs);
+	bool ret=msg_send_x(id,conn,typ,cb,nargs,ap);
+	va_end(ap);
+	return ret;
 }
 
 void msg_runloop(
