@@ -36,3 +36,17 @@ Menuwidget* menu_make(int basex,int basey,const Menudata *data); //keeps a refer
 void menu_destroy(Menuwidget *mw);
 void menu_redraw(Menuwidget *mw); //should only be needed if overwritten
 Menukey menu_handlekey(Menuwidget *mw,int key);
+
+
+struct Boardwidget;
+typedef struct Boardwidget Boardwidget;
+
+typedef enum Boardkey{
+	BOARDKEY_HANDLED,
+	BOARDKEY_IGNORED
+} Boardkey;
+
+Boardwidget* bdw_make(int basex,int basey);
+void bdw_destroy(Boardwidget *bdw);
+void bdw_redraw(Boardwidget *bdw); //should only be needed if overwritten
+Boardkey bdw_handlekey(Boardwidget *bdw,int key);
