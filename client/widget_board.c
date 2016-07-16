@@ -11,9 +11,10 @@ struct Boardwidget{
 	Board *board;
 	int basex,basey;
 	int curx,cury;
+	bool colorcursor;
 };
 
-Boardwidget* bdw_make(int basex,int basey){
+Boardwidget* bdw_make(int basex,int basey,bool colorcursor){
 	Boardwidget *bdw=malloc(sizeof(Boardwidget));
 	if(!bdw)return NULL;
 	Board *board=makeboard();
@@ -25,6 +26,7 @@ Boardwidget* bdw_make(int basex,int basey){
 	bdw->basex=basex;
 	bdw->basey=basey;
 	bdw->curx=bdw->cury=0;
+	bdw->colorcursor=colorcursor;
 	bdw_redraw(bdw);
 	return bdw;
 }
@@ -37,7 +39,13 @@ void bdw_redraw(Boardwidget *bdw){
 	assert(bdw);
 	moveto(bdw->basex,bdw->basey);
 	tprintboard(bdw->board);
-	moveto(bdw->basex+2*bdw->curx,bdw->basey+bdw->cury);
+	int x=bdw->basex+2*bdw->curx,y=bdw->basey+bdw->cury;
+	moveto(x,y);
+	if(bdw->colorcursor){
+		setbg(5);
+		tputc(getbufferchar(x,y));
+		setbg(9);
+	}
 }
 
 Boardkey bdw_handlekey(Boardwidget *bdw,int key){

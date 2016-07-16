@@ -273,7 +273,7 @@ void tputc(char c){
 	tputcstartx(c,&startx);
 }
 
-__attribute__((format (printf, 1,2))) void tprintf(const char *format,...){
+__attribute__((format (printf, 1,2))) int tprintf(const char *format,...){
 	if(needresize)resizeterm();
 	char *buf;
 	va_list ap;
@@ -286,9 +286,10 @@ __attribute__((format (printf, 1,2))) void tprintf(const char *format,...){
 	int startx=cursor.x;
 
 	char *bufit=buf;
-	while(len-->0){
+	for(int i=0;i<len;i++){
 		tputcstartx(*bufit++,&startx);
 	}
+	return len;
 }
 
 static void redrawfullx(bool full){
@@ -333,6 +334,15 @@ void redraw(void){
 
 void redrawfull(void){
 	redrawfullx(true);
+}
+
+
+char getbufferchar(int x,int y){
+	if(x>=termsize.w)x=termsize.w-1;
+	if(x<0)x=0;
+	if(y>=termsize.h)y=termsize.h-1;
+	if(y<0)y=0;
+	return atxy(drawbuf,x,y).c;
 }
 
 

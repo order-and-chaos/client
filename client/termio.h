@@ -29,9 +29,11 @@ void setbg(int bg);
 void setbold(bool bold);
 void setul(bool ul);
 void tputc(char c);
-void tprintf(const char *format,...) __attribute__((format (printf, 1, 2)));
+int tprintf(const char *format,...) __attribute__((format (printf, 1, 2)));
 void redraw(void);
 void redrawfull(void);
+
+char getbufferchar(int x,int y);
 
 void moveto(int x,int y);
 void pushcursor(void);

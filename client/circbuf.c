@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "widget.h"
+#include "circbuf.h"
 
 typedef struct Circbuf{
 	char **data;
@@ -25,6 +25,11 @@ Circbuf* cb_make(int size,void (*deleteitem)(void*)){
 	return cb;
 }
 
+void cb_destroy(Circbuf *cb){
+	cb_clear(cb);
+	free(cb);
+}
+
 void cb_append(Circbuf *cb,char *item){
 	int index=(cb->base+cb->len)%cb->sz;
 	if(cb->data[index])cb->deleteitem(cb->data[index]);
@@ -36,6 +41,7 @@ void cb_append(Circbuf *cb,char *item){
 void cb_clear(Circbuf *cb){
 	for(int i=0;i<cb->len;i++){
 		cb->deleteitem(cb->data[(cb->base+i)%cb->sz]);
+		cb->data[(cb->base+i)%cb->sz]=NULL;
 	}
 	cb->len=0;
 }

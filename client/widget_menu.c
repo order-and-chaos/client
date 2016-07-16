@@ -80,14 +80,3 @@ Menukey menu_handlekey(Menuwidget *mw,int key){
 		}
 	}
 }
-
-
-
-struct Boardwidget{
-	Board *bd;
-};
-
-Boardwidget* bdw_make(int basex,int basey);
-void bdw_destroy(Boardwidget *bdw);
-void bdw_redraw(Boardwidget *bdw); //should only be needed if overwritten
-Boardkey bdw_handlekey(Boardwidget *bdw,int key);

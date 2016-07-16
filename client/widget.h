@@ -1,9 +1,11 @@
 #pragma once
 
+#include <stdbool.h>
+
 struct Logwidget;
 typedef struct Logwidget Logwidget;
 
-Logwidget* lgw_make(int x,int y,int w,int h);
+Logwidget* lgw_make(int x,int y,int w,int h,const char *title); //title may be "" or NULL for no title; is copied
 void lgw_destroy(Logwidget *lgw);
 void lgw_redraw(Logwidget *lgw); //called automatically; should only be needed if something else overwrote the widget
 void lgw_add(Logwidget *lgw,const char *line);
@@ -11,10 +13,19 @@ void lgw_addf(Logwidget *lgw,const char *format,...) __attribute__((format (prin
 void lgw_clear(Logwidget *lgw);
 
 
+struct Promptwidget;
+typedef struct Promptwidget Promptwidget;
+
+Promptwidget *prw_make(int x,int y,int w);
+void prw_destroy(Promptwidget *prw);
+void prw_redraw(Promptwidget *prw); //should only be needed if overwritten
+char* prw_handlekey(Promptwidget *prw,int key); //newly allocated input string if enter, NULL otherwise
+
+
 typedef struct Menuitem{
 	char *text;
 	int hotkey;
-	void (*func)(void); //will be returned by menu_select()
+	void (*func)(void); //will be called by menu_handlekey()
 } Menuitem;
 
 typedef struct Menudata{
@@ -46,7 +57,7 @@ typedef enum Boardkey{
 	BOARDKEY_IGNORED
 } Boardkey;
 
-Boardwidget* bdw_make(int basex,int basey);
+Boardwidget* bdw_make(int basex,int basey,bool colorcursor);
 void bdw_destroy(Boardwidget *bdw);
 void bdw_redraw(Boardwidget *bdw); //should only be needed if overwritten
 Boardkey bdw_handlekey(Boardwidget *bdw,int key);

@@ -10,18 +10,23 @@
 #include "circbuf.h"
 #include "util.h"
 
+// #define DBG(...) do {FILE *f__=fopen("/dev/ttys002","w"); fprintf(f__,__VA_ARGS__); fclose(f__);} while(0)
+#define DBG(...)
+
 struct Logwidget{
 	Circbuf *cb;
 	int nrows;
 	int x,y,w,h;
-	int nexty;
+	char *title;
 };
 
 
 static void lgw_drawborder(Logwidget *lgw){
 	moveto(lgw->x,lgw->y);
 	tputc('+');
-	for(int i=1;i<lgw->w-1;i++)tputc('-');
+	tputc('-');
+	int len=tprintf("%s",lgw->title);
+	for(int i=len+2;i<lgw->w-1;i++)tputc('-');
 	tputc('+');
 	for(int i=1;i<lgw->h-1;i++){
 		moveto(lgw->x,lgw->y+i);
@@ -35,13 +40,23 @@ static void lgw_drawborder(Logwidget *lgw){
 	tputc('+');
 }
 
-Logwidget* lgw_make(int x,int y,int w,int h){
+Logwidget* lgw_make(int x,int y,int w,int h,const char *title){
 	assert(x>=0&&y>=0);
 	assert(w>=3&&h>=3);
 	Logwidget *lgw=malloc(sizeof(Logwidget));
 	if(!lgw)return NULL;
+	if(title==NULL)lgw->title=NULL;
+	else {
+		int len=asprintf(&lgw->title,"%s",title);
+		if(!lgw->title){
+			free(lgw);
+			return NULL;
+		}
+		if(len>w-2)lgw->title[w]='\0';
+	}
 	lgw->cb=cb_make(h-2,free);
 	if(!lgw->cb){
+		if(lgw->title)free(lgw->title);
 		free(lgw);
 		return NULL;
 	}
@@ -50,7 +65,6 @@ Logwidget* lgw_make(int x,int y,int w,int h){
 	lgw->y=y;
 	lgw->w=w;
 	lgw->h=h;
-	lgw->nexty=0;
 
 	pushcursor();
 	lgw_drawborder(lgw);
@@ -59,17 +73,25 @@ Logwidget* lgw_make(int x,int y,int w,int h){
 	return lgw;
 }
 
+void lgw_destroy(Logwidget *lgw){
+	cb_destroy(lgw->cb);
+	if(lgw->title)free(lgw->title);
+	free(lgw);
+}
+
 void lgw_redraw(Logwidget *lgw){
 	pushcursor();
 	lgw_drawborder(lgw);
 
 	int len=cb_length(lgw->cb);
+	DBG("len=%d nrows=%d\n",len,lgw->nrows);
 	int i;
 	for(i=0;i<len;i++){
 		moveto(lgw->x+1,lgw->y+1+i);
 		char *line=cb_get(lgw->cb,i);
-		tprintf("%s",line);
-		for(int j=strlen(line);j<lgw->w-2;j++)tputc(' ');
+		int linelen=tprintf("%s",line);
+		DBG("line=<%s>  linelen=%d\n",line,linelen);
+		for(int j=linelen;j<lgw->w-2;j++)tputc(' ');
 	}
 	for(;i<lgw->nrows;i++){
 		moveto(lgw->x+1,lgw->y+1+i);
@@ -83,10 +105,11 @@ void lgw_add(Logwidget *lgw,const char *line){
 	while(len>0){
 		int copylen=lgw->w-2;
 		if(copylen>len)copylen=len;
-		char *copy=malloc(copylen+1);
+		char *copy=calloc(copylen+1,1);
 		assert(copy);
-		memcpy(copy,line,copylen);
-		copy[copylen]='\0';
+		for(int i=0,j=0;i<len&&j<copylen;i++){
+			if(line[i]>=32&&line[i]<127)copy[j++]=line[i];
+		}
 		cb_append(lgw->cb,copy);
 		len-=copylen;
 		line+=copylen;
