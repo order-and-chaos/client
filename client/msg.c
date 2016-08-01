@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include <sys/select.h>
 #include <errno.h>
 #include <assert.h>
@@ -95,7 +96,22 @@ static void free_message(Message *msg){
 }
 
 
+static char readunicodehex(const char *str,int len){
+	unsigned char acc=0;
+	for(int i=0;i<len;i++){
+		unsigned char inc=
+			str[i]>='0'&&str[i]<='9'?str[i]-'0':
+			str[i]>='a'&&str[i]<='f'?str[i]-'a'+10:
+			str[i]>='A'&&str[i]<='F'?str[i]-'A'+10:
+			0;
+		acc=16*acc+inc;
+	}
+	return (char)acc;
+}
+
 static Message* parse_message(const char *line){
+	FILE *f=fopen("/dev/pts/5","w"); fprintf(f,"(%5d) message: \"%s\"\n",getpid(),line); fclose(f);
+
 	if(line[0]!='{')return NULL;
 	Message *msg=(Message*)malloc(sizeof(Message));
 	msg->id=-1;
@@ -103,7 +119,7 @@ static Message* parse_message(const char *line){
 	msg->args=NULL;
 	msg->nargs=0;
 
-#define FAIL_RETURN do {free_message(msg); __asm("int3\n\r"); return NULL;} while(0)
+#define FAIL_RETURN do {/*free_message(msg);*/ __asm("int3\n\r"); return NULL;} while(0)
 
 	line++; //move past the '{'
 
@@ -128,14 +144,26 @@ static Message* parse_message(const char *line){
 		} else if(p-keyname==4&&memcmp(keyname,"type",4)==0){
 			if(*line!='"')FAIL_RETURN;
 			line++;
-			p=strchr(line,'"');
-			if(p==NULL)FAIL_RETURN;
-			int typlen=p-line;
+			int i=0,typlen=0;
+			while(line[i]!='\0'&&line[i]!='"'){
+				if(line[i]=='\\'){
+					i++;
+					if(line[i]=='\0')FAIL_RETURN;
+				}
+				i++;
+				typlen++;
+			}
+			if(line[i]=='\0')FAIL_RETURN;
 			msg->typ=(char*)malloc(typlen+1);
 			if(!msg->typ)FAIL_RETURN;
-			memcpy(msg->typ,line,typlen);
+			i=0;
+			int j=0;
+			while(line[i]!='"'){
+				if(line[i]=='\\')i++;
+				msg->typ[j++]=line[i++];
+			}
 			msg->typ[typlen]='\0';
-			line=p+1;
+			line+=i+1;
 		} else if(p-keyname==4&&memcmp(keyname,"args",4)==0){
 			if(*line!='[')FAIL_RETURN;
 			line++;
@@ -168,17 +196,33 @@ static Message* parse_message(const char *line){
 			for(i=0;i<nargs;i++){
 				if(*line!='"')FAIL_RETURN;
 				line++;
+				int arglen=0;
 				for(p=line;*p!='\0'&&*p!='"';p++){
 					if(*p=='\\'){
 						p++;
 						if(*p=='\0')FAIL_RETURN;
+						if(*p=='u'){
+							if(p[1]=='\0'||p[2]=='\0'||p[3]=='\0'||p[4]=='\0')FAIL_RETURN;
+							p+=4;
+						}
 					}
+					arglen++;
 				}
 				if(*p=='\0')FAIL_RETURN;
-				int arglen=p-line;
 				msg->args[i]=malloc(arglen+1);
 				if(!msg->args[i])FAIL_RETURN;
-				memcpy(msg->args[i],line,arglen);
+				int j=0,k=0;
+				while(line[j]!='"'){
+					if(line[j]=='\\'){
+						j++;
+						if(line[j]=='u'){
+							msg->args[i][k++]=readunicodehex(line+(j+1),4);
+							j+=5;
+						}
+					} else {
+						msg->args[i][k++]=line[j++];
+					}
+				}
 				msg->args[i][arglen]='\0';
 				line=p+1;
 				if(*line==']'){

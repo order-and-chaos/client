@@ -114,6 +114,37 @@ static void joinroom_menufunc(void){
 	redrawscreen();
 }
 
+static void log_message(const Message *msg,const char *prefix){
+        int len=strlen(prefix)+6+strlen(msg->typ)+3+1;
+        for(int i=0;i<msg->nargs;i++){
+                if(i!=0)len++;
+                len+=strlen(msg->args[i]);
+        }
+        len++; // '\0'
+        char *line=malloc(len);
+        if(!line)outofmem();
+
+        int cursor=0;
+        strcpy(line+cursor,prefix);
+        cursor+=strlen(prefix);
+        strcpy(line+cursor," typ='");
+        cursor+=6;
+        strcpy(line+cursor,msg->typ);
+        cursor+=strlen(msg->typ);
+        strcpy(line+cursor,"' [");
+        cursor+=3;
+        for(int i=0;i<msg->nargs;i++){
+                if(i!=0)line[cursor++]=',';
+                strcpy(line+cursor,msg->args[i]);
+                cursor+=strlen(msg->args[i]);
+        }
+        line[cursor++]=']';
+        line[cursor]='\0';
+
+        lgw_add(mstate.lgw,line);
+        free(line);
+}
+
 
 
 /// WEBSOCKET CALLBACKS
@@ -124,6 +155,12 @@ static void getnickcb(ws_conn *conn,const Message *msg){
 	asprintf(&mstate.nick,"%s",msg->args[0]);
 	if(!mstate.nick)outofmem();
 	lgw_addf(mstate.lgw,"Nickname: %s",mstate.nick);
+
+	char *tit;
+	asprintf(&tit,"Chat (%s)",mstate.nick);
+	if(!tit)outofmem();
+	lgw_changetitle(mstate.chw,tit);
+	free(tit);
 
 	mstate.state=SM_MAINMENU;
 	lgw_add(mstate.lgw,"SM_MAINMENU");
@@ -141,6 +178,12 @@ static void spectateroomcb(ws_conn *conn,const Message *msg){
 	if(strcmp(msg->typ,"ok")!=0){
 		lgw_addf(mstate.lgw,"spectateroom: %s: %s",msg->typ,msg->args[0]);
 		redraw();
+	} else {
+		mstate.state=SM_INROOM;
+		lgw_add(mstate.lgw,"SM_INROOM");
+		menu_destroy(mstate.mw);
+		mstate.mw=NULL;
+		redrawscreen();
 	}
 }
 
@@ -153,7 +196,7 @@ static void tryjoinroom(void){
 }
 
 static void sendchatline(const char *line){
-	if(mstate.state!=SM_INGAME)lgw_add(mstate.lgw,"[WARN] sendchatline while not in room");
+	if(mstate.state!=SM_INROOM)lgw_add(mstate.lgw,"[WARN] sendchatline while not in room");
 	msg_send(mstate.conn,"sendroomchat",sendroomchatcb,1,line);
 }
 
@@ -162,6 +205,12 @@ static void msghandler(ws_conn *conn,const Message *msg){
 		msg_reply(msg->id,conn,"pong",NULL,0);
 	} else if(strcmp(msg->typ,"pong")==0){
 		//do nothing
+	} else if(strcmp(msg->typ,"chatmessage")==0){
+		lgw_addf(mstate.chw,"<%s> %s",msg->args[0],msg->args[1]);
+		redraw();
+	} else {
+		log_message(msg,"Unsollicited message received: ");
+		redraw();
 	}
 }
 
@@ -195,6 +244,7 @@ static void fdhandler(ws_conn *conn,const fd_set *rdset,const fd_set *wrset){
 				sendchatline(line);
 				free(line);
 			}
+			redraw();
 			break;
 		}
 		case SM_CREATEROOM:

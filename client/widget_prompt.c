@@ -65,7 +65,7 @@ char* prw_handlekey(Promptwidget *prw,int key){
 				prw->len--;
 				prw->buf[prw->len]='\0';
 			}
-			FILE *f=fopen("/dev/ttys002","w"); fprintf(f,"bs: len=%d,buf=<%s>\n",prw->len,prw->buf); fclose(f);
+			//FILE *f=fopen("/dev/ttys002","w"); fprintf(f,"bs: len=%d,buf=<%s>\n",prw->len,prw->buf); fclose(f);
 			prw_redraw(prw);
 			break;
 
@@ -75,12 +75,13 @@ char* prw_handlekey(Promptwidget *prw,int key){
 			prw->buf=malloc(prw->sz);
 			if(!prw->buf)outofmem();
 			prw->buf[0]='\0';
+			prw->len=0;
 			prw_redraw(prw);
 			return ret;
 		}
 
 		default:
-			{FILE *f=fopen("/dev/ttys002","w"); fprintf(f,"key=%d\n",key); fclose(f);}
+			//{FILE *f=fopen("/dev/ttys002","w"); fprintf(f,"key=%d\n",key); fclose(f);}
 			if(key<32||key>126)bel();
 			else {
 				if(prw->len>=prw->sz-1){
