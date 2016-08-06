@@ -1,0 +1,3 @@
+[submodule "client/vendor/tomjson"]
+	path = client/vendor/tomjson
+	url = git@github.com:tomsmeding/tomjson.git

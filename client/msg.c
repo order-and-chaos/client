@@ -9,6 +9,7 @@
 #include <assert.h>
 
 #include "msg.h"
+#include "util.h"
 
 typedef void (*Value)(ws_conn *conn,const Message*);
 
@@ -67,23 +68,6 @@ static bool hash_delete(int key){
 	return true;
 }
 
-static char* json_escape(const char *s){
-	int len=0;
-	for(int i=0;s[i];i++){
-		len++;
-		if(s[i]=='\\')len++;
-		else if(s[i]=='"')len++;
-	}
-	char *buf=malloc(len+1);
-	if(!buf)return NULL;
-	for(int i=0,j=0;s[i];i++,j++){
-		if(s[i]=='\\'||s[i]=='"')buf[j++]='\\';
-		buf[j]=s[i];
-	}
-	buf[len]='\0';
-	return buf;
-}
-
 static void free_message(Message *msg){
 	if(msg){
 		if(msg->typ)free(msg->typ);
@@ -96,215 +80,82 @@ static void free_message(Message *msg){
 }
 
 
-static char readunicodehex(const char *str,int len){
-	unsigned char acc=0;
-	for(int i=0;i<len;i++){
-		unsigned char inc=
-			str[i]>='0'&&str[i]<='9'?str[i]-'0':
-			str[i]>='a'&&str[i]<='f'?str[i]-'a'+10:
-			str[i]>='A'&&str[i]<='F'?str[i]-'A'+10:
-			0;
-		acc=16*acc+inc;
+static Jsonnode *message_to_json(Message msg) {
+	Jsonnode *res = json_make_object();
+
+	json_object_add_key(&res->objval, "id", json_make_num(msg.id));
+	json_object_add_key(&res->objval, "type", json_make_str(msg.typ));
+
+	Jsonnode *arr = json_make_array();
+	for (int i = 0; i < msg.nargs; i++) {
+		json_array_add_item(&arr->arrval, json_make_str(msg.args[i]));
 	}
-	return (char)acc;
+	json_object_add_key(&res->objval, "args", arr);
+
+	json_free(arr);
+	return res;
+}
+
+static Message *message_from_json(Jsonnode *node) {
+	Message *res = malloc(sizeof(Message));
+
+	Jsonnode *idnode = json_object_get_item(&node->objval, "id");
+	Jsonnode *typnode = json_object_get_item(&node->objval, "type");
+	Jsonnode *argsnode = json_object_get_item(&node->objval, "args");
+	if (!idnode || !typnode || !argsnode) {
+		// __asm("int3\n\r");
+		return NULL;
+	}
+
+	res->id = idnode->numval;
+	json_free(idnode);
+
+	res->typ = astrcpy(typnode->strval);
+	json_free(typnode);
+
+	Jsonarray args = argsnode->arrval;
+	res->nargs = args.length;
+	res->args = malloc(res->nargs * sizeof(char*));
+	for (int i = 0; i < args.length; i++) {
+		res->args[i] = astrcpy(args.elems[i]->strval);
+	}
+	json_free(argsnode);
+
+	return res;
 }
 
 static Message* parse_message(const char *line){
-	FILE *f=fopen("/dev/pts/5","w"); fprintf(f,"(%5d) message: \"%s\"\n",getpid(),line); fclose(f);
-
-	if(line[0]!='{')return NULL;
-	Message *msg=(Message*)malloc(sizeof(Message));
-	msg->id=-1;
-	msg->typ=NULL;
-	msg->args=NULL;
-	msg->nargs=0;
-
-#define FAIL_RETURN do {/*free_message(msg);*/ __asm("int3\n\r"); return NULL;} while(0)
-
-	line++; //move past the '{'
-
-	while(true){
-		if(*line!='"')FAIL_RETURN;
-		line++;
-		const char *keyname=line;
-		const char *p=strchr(line,'"');
-		if(p==NULL||p[1]!=':'||p[2]=='\0')FAIL_RETURN;
-		const char *value=p+2;
-
-		line=value;
-		if(p-keyname==2&&memcmp(keyname,"id",2)==0){
-			int i,id=0;
-			for(i=0;line[i];i++){
-				if(line[i]<'0'||line[i]>'9')break;
-				id=10*id+line[i]-'0';
-			}
-			if(i==0)FAIL_RETURN;
-			msg->id=id;
-			line+=i;
-		} else if(p-keyname==4&&memcmp(keyname,"type",4)==0){
-			if(*line!='"')FAIL_RETURN;
-			line++;
-			int i=0,typlen=0;
-			while(line[i]!='\0'&&line[i]!='"'){
-				if(line[i]=='\\'){
-					i++;
-					if(line[i]=='\0')FAIL_RETURN;
-				}
-				i++;
-				typlen++;
-			}
-			if(line[i]=='\0')FAIL_RETURN;
-			msg->typ=(char*)malloc(typlen+1);
-			if(!msg->typ)FAIL_RETURN;
-			i=0;
-			int j=0;
-			while(line[i]!='"'){
-				if(line[i]=='\\')i++;
-				msg->typ[j++]=line[i++];
-			}
-			msg->typ[typlen]='\0';
-			line+=i+1;
-		} else if(p-keyname==4&&memcmp(keyname,"args",4)==0){
-			if(*line!='[')FAIL_RETURN;
-			line++;
-			int nargs=0,i=0;
-			while(true){
-				if(line[i]=='\0')FAIL_RETURN;
-				if(line[i]==']')break; //no arguments
-				if(line[i]!='"')FAIL_RETURN;
-				i++;
-				while(line[i]!='\0'&&line[i]!='"'){
-					if(line[i]=='\\'){
-						i++;
-						if(line[i]=='\0')FAIL_RETURN;
-					}
-					i++;
-				}
-				if(line[i]=='\0')FAIL_RETURN;
-				i++;
-				nargs++;
-				if(line[i]==']')break;
-				if(line[i]!=',')FAIL_RETURN;
-				i++;
-			}
-
-			//nargs has been calculated, now collect actual args
-			//line points at quote of first argument; line+i is final ']'
-			msg->nargs=nargs;
-			msg->args=calloc(nargs,sizeof(char*)); //such that args are NULL still
-			if(!msg->args)FAIL_RETURN;
-			for(i=0;i<nargs;i++){
-				if(*line!='"')FAIL_RETURN;
-				line++;
-				int arglen=0;
-				for(p=line;*p!='\0'&&*p!='"';p++){
-					if(*p=='\\'){
-						p++;
-						if(*p=='\0')FAIL_RETURN;
-						if(*p=='u'){
-							if(p[1]=='\0'||p[2]=='\0'||p[3]=='\0'||p[4]=='\0')FAIL_RETURN;
-							p+=4;
-						}
-					}
-					arglen++;
-				}
-				if(*p=='\0')FAIL_RETURN;
-				msg->args[i]=malloc(arglen+1);
-				if(!msg->args[i])FAIL_RETURN;
-				int j=0,k=0;
-				while(line[j]!='"'){
-					if(line[j]=='\\'){
-						j++;
-						if(line[j]=='u'){
-							msg->args[i][k++]=readunicodehex(line+(j+1),4);
-							j+=5;
-						}
-					} else {
-						msg->args[i][k++]=line[j++];
-					}
-				}
-				msg->args[i][arglen]='\0';
-				line=p+1;
-				if(*line==']'){
-					if(i==nargs-1)break;
-					else { //shouldn't happen; we counted arguments?
-						fprintf(stderr,"Counting arguments doesn't seem to work...\n");
-						FAIL_RETURN;
-					}
-				}
-				if(*line!=',')FAIL_RETURN;
-				line++;
-			}
-			line++;
-		} else FAIL_RETURN;
-
-		if(*line=='}')break;
-		if(*line!=',')FAIL_RETURN;
-		line++;
-	}
-	if(line[1]!='\0')FAIL_RETURN;
-
-#undef FAIL_RETURN
-
-	return msg;
+	Jsonnode *node = json_parse(line, strlen(line));
+	Message *res = message_from_json(node);
+	json_free(node);
+	return res;
 }
-
 
 bool msg_send_x(int id,ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Message*),int nargs,va_list ap){
 	assert(typ);
 	assert(nargs>=0);
 
-	char *esc=json_escape(typ);
+	Message msg;
+	msg.id = id;
+	msg.typ = (char*)typ;
+	msg.nargs = nargs;
 
-	char **args=NULL; //already json_escape'd
-	int argslen=2; //brackets
-	if(nargs>0){
-		args=(char**)malloc(nargs*sizeof(char*));
-		if(args==NULL){
-			free(esc);
-			return false;
-		}
-		for(int i=0;i<nargs;i++){
-			char *given=va_arg(ap,char*);
-			args[i]=json_escape(given);
-			if(args[i]==NULL){
-				while(i-->0)free(args[i]);
-				free(args);
-				free(esc);
-				return false;
-			}
-			argslen+=3+strlen(args[i]); //comma, quotes, string
-		}
-		argslen--; //remove extra comma
+	msg.args = malloc(nargs * sizeof(char*));
+	for (int i = 0; i < nargs; i++) {
+		msg.args[i] = va_arg(ap, char*);
 	}
 
-	char *argsstr=(char*)malloc(argslen+1);
-	if(!argsstr){
-		for(int i=0;i<nargs;i++)free(args[i]);
-		free(args);
-		free(esc);
-		return false;
-	}
-	argsstr[0]='[';
-	int cursor=1;
-	for(int i=0;i<nargs;i++){
-		if(i!=0)argsstr[cursor++]=',';
-		argsstr[cursor++]='"';
-		strcpy(argsstr+cursor,args[i]);
-		cursor+=strlen(args[i]);
-		argsstr[cursor++]='"';
-	}
-	argsstr[cursor++]=']';
-	argsstr[cursor]='\0';
+	Jsonnode *node = message_to_json(msg);
+	char *res = json_stringify(node);
+	json_free(node);
 
-	char *res;
-	asprintf(&res,"{\"id\":%d,\"type\":\"%s\",\"args\":%s}\n",id,esc,argsstr);
-	free(argsstr);
-	for(int i=0;i<nargs;i++)free(args[i]);
-	free(args);
-	free(esc);
-	if(!res)return false;
-	// fprintf(stderr,"Sending: '%s'\n",res);
+	fprintf(stderr, "Sending: '%s'\n",res);
+
+	// add an \n after the message
+	size_t len = strlen(res);
+	res = realloc(res, (len+1) * sizeof(char));
+	res[len  ] = '\n';
+	res[len+1] = '\0';
 
 	ws_writestr(conn,res);
 	free(res);
