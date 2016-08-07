@@ -28,7 +28,9 @@ else
 	DYLIB_FLAGS = -shared -fPIC
 endif
 
-.PHONY: all clean remake client competition
+TERMIO_LIB = client/vendor/termio
+
+.PHONY: all clean remake client competition clientdeps
 
 all: ai_term client competition
 
@@ -37,6 +39,7 @@ clean:
 	rm -f client/client
 	rm -f competition/competition competition/*.dylib competition/*.so
 	rm -rf *.dSYM client/*.dSYM competition/*.dSYM
+	make -C $(TERMIO_LIB) clean
 
 remake: clean all
 
@@ -61,9 +64,13 @@ genwinmasks: genwinmasks.c
 winmasks.h: genwinmasks
 	./genwinmasks >winmasks.h
 
+clientdeps: $(TERMIO_LIB)/libtermio.a
 
-client/client: $(wildcard client/*.c client/*.h) $(CLIENTLIB)
-	$(CC) $(CFLAGS) -I$(NOPOLL_INC) -o $@ $(filter-out %.h,$^) $(NOPOLL_LIB)/libnopoll.a -lssl -lcrypto
+$(TERMIO_LIB)/libtermio.a: $(TERMIO_LIB)/termio.c
+	make -C $(TERMIO_LIB) clean staticlib
+
+client/client: clientdeps $(wildcard client/*.c client/*.h) $(CLIENTLIB)
+	$(CC) $(CFLAGS) -I$(NOPOLL_INC) -I$(TERMIO_LIB) -o $@ $(filter-out %.h clientdeps,$^) $(NOPOLL_LIB)/libnopoll.a $(TERMIO_LIB)/libtermio.a -lssl -lcrypto
 
 
 competition/competition: $(wildcard competition/*.c competition/*.h)

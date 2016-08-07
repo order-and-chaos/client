@@ -7,8 +7,8 @@
 
 #include "multiplayer.h"
 #include "termio.h"
+#include "widget_board.h"
 #include "tprintboard.h"
-#include "widget.h"
 #include "ws.h"
 #include "msg.h"
 #include "util.h"

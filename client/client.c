@@ -7,7 +7,6 @@
 #include "termio.h"
 #include "singleplayer.h"
 #include "multiplayer.h"
-#include "widget.h"
 #include "util.h"
 
 

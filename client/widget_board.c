@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "widget.h"
+#include "widget_board.h"
 #include "termio.h"
 #include "tprintboard.h"
 #include "../ai.h"
