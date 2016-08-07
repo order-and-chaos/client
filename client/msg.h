@@ -11,6 +11,8 @@ typedef struct Message{
 	int nargs;
 } Message;
 
+void msg_destroy(Message *msg);
+
 //cb is called when response message (with same id) is received; pass NULL as
 //cb to not register callback.
 //Varargs are the message arguments, and should all be (const) char*

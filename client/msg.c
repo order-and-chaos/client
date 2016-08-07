@@ -84,7 +84,7 @@ static char* json_escape(const char *s){
 	return buf;
 }
 
-static void free_message(Message *msg){
+void msg_destroy(Message *msg){
 	if(msg){
 		if(msg->typ)free(msg->typ);
 		if(msg->args){
@@ -380,7 +380,7 @@ void msg_runloop(
 					ch->value(conn,msg);
 					hash_delete(id);
 				}
-				free(msg);
+				msg_destroy(msg);
 			} else {
 				fprintf(stderr,"Could not parse message: '%s'\n",line);
 			}
