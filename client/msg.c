@@ -80,7 +80,7 @@ static void free_message(Message *msg){
 }
 
 
-static Jsonnode *message_to_json(Message msg) {
+static Jsonnode* message_to_json(Message msg) {
 	Jsonnode *res = json_make_object();
 
 	json_object_add_key(&res->objval, "id", json_make_num(msg.id));
@@ -96,14 +96,16 @@ static Jsonnode *message_to_json(Message msg) {
 	return res;
 }
 
-static Message *message_from_json(Jsonnode *node) {
+static Message* message_from_json(Jsonnode *node) {
 	Message *res = malloc(sizeof(Message));
 
 	Jsonnode *idnode = json_object_get_item(&node->objval, "id");
 	Jsonnode *typnode = json_object_get_item(&node->objval, "type");
 	Jsonnode *argsnode = json_object_get_item(&node->objval, "args");
 	if (!idnode || !typnode || !argsnode) {
-		// __asm("int3\n\r");
+		if(idnode) json_free(idnode);
+		if(typnode) json_free(typnode);
+		if(argsnode) json_free(argsnode);
 		return NULL;
 	}
 
@@ -135,7 +137,7 @@ bool msg_send_x(int id,ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,co
 	assert(typ);
 	assert(nargs>=0);
 
-	Message msg;
+	Message msg; //should not be freed with msg_destroy()
 	msg.id = id;
 	msg.typ = (char*)typ;
 	msg.nargs = nargs;
@@ -146,6 +148,7 @@ bool msg_send_x(int id,ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,co
 	}
 
 	Jsonnode *node = message_to_json(msg);
+	free(msg.args);
 	char *res = json_stringify(node);
 	json_free(node);
 
