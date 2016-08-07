@@ -3,6 +3,7 @@
 #include <sys/time.h> //struct timeval
 
 #include "ws.h"
+#include "vendor/tomjson/tomjson.h"
 
 typedef struct Message{
 	int id;

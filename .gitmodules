@@ -1,3 +1,6 @@
 [submodule "client/vendor/termio"]
 	path = client/vendor/termio
 	url = git@github.com:tomsmeding/termio.git
+[submodule "client/vendor/tomjson"]
+	path = client/vendor/tomjson
+	url = git@github.com:tomsmeding/tomjson.git
