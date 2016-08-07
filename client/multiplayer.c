@@ -243,9 +243,14 @@ static void tryjoinroom(char *roomid){
 	msg_send(mstate.conn,"joinroom",joinroomcb,1,roomid);
 }
 
+static void printchatmessage(const char *from,const char *msg){
+	lgw_addf(mstate.chw,"<%s> %s",from,msg);
+}
+
 static void sendchatline(const char *line){
 	if(mstate.state!=SM_INROOM)lgw_add(mstate.lgw,"[WARN] sendchatline while not in room");
 	msg_send(mstate.conn,"sendroomchat",sendroomchatcb,1,line);
+	printchatmessage(mstate.nick,line);
 }
 
 static void msghandler(ws_conn *conn,const Message *msg){
@@ -254,7 +259,7 @@ static void msghandler(ws_conn *conn,const Message *msg){
 	} else if(strcmp(msg->typ,"pong")==0){
 		//do nothing
 	} else if(strcmp(msg->typ,"chatmessage")==0){
-		lgw_addf(mstate.chw,"<%s> %s",msg->args[0],msg->args[2]);
+		printchatmessage(msg->args[0],msg->args[2]);
 		redraw();
 	} else {
 		log_message(msg,"Unsollicited message received: ");
