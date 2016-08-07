@@ -31,7 +31,9 @@ endif
 TERMIO_LIB = client/vendor/termio
 TOMJSON_LIB = client/vendor/tomjson
 
-.PHONY: all clean remake client competition clientdeps
+CLIENTDEPS = $(TERMIO_LIB)/libtermio.a $(TOMJSON_LIB)/libtomjson.a
+
+.PHONY: all clean remake client competition
 
 all: ai_term client competition
 
@@ -66,16 +68,14 @@ genwinmasks: genwinmasks.c
 winmasks.h: genwinmasks
 	./genwinmasks >winmasks.h
 
-clientdeps: $(TERMIO_LIB)/libtermio.a $(TOMJSON_LIB)/tomjson.a
-
 $(TERMIO_LIB)/libtermio.a: $(TERMIO_LIB)/termio.c
 	make -C $(TERMIO_LIB) clean staticlib
 
-$(TOMJSON_LIB)/tomjson.a: $(TOMJSON_LIB)/tomjson.c
+$(TOMJSON_LIB)/libtomjson.a: $(TOMJSON_LIB)/tomjson.c
 	make -C $(TOMJSON_LIB) clean staticlib test
 
-client/client: clientdeps $(wildcard client/*.c client/*.h) $(CLIENTLIB)
-	$(CC) $(CFLAGS) -I$(NOPOLL_INC) -I$(TERMIO_LIB) -I$(TOMJSON_LIB) -o $@ $(filter-out %.h clientdeps,$^) $(NOPOLL_LIB)/libnopoll.a $(TERMIO_LIB)/libtermio.a $(TOMJSON_LIB)/libtomjson.a -lssl -lcrypto
+client/client: $(CLIENTDEPS) $(wildcard client/*.c client/*.h) $(CLIENTLIB)
+	$(CC) $(CFLAGS) -I$(NOPOLL_INC) -I$(TERMIO_LIB) -I$(TOMJSON_LIB) -o $@ $(filter-out %.h,$^) $(NOPOLL_LIB)/libnopoll.a -lssl -lcrypto
 
 
 competition/competition: $(wildcard competition/*.c competition/*.h)
