@@ -60,6 +60,7 @@ typedef struct Multiplayerstate{
 	char *roomid;
 
 	Statetype state;
+	bool isspectator;
 } Multiplayerstate;
 
 Multiplayerstate mstate;
@@ -102,10 +103,46 @@ static void redrawscreen(void){
 	redraw();
 }
 
+static bool handleroomjoin(const Message *msg) {
+	fprintf(stderr,"inpw: %p\n", mstate.inpw);
+	if (strcmp(msg->typ, "ok") != 0) {
+		fprintf(stderr,"return\n");
+		return false;
+	}
+
+	mstate.state=SM_INROOM;
+
+	lgw_addf(mstate.lgw,"SM_INROOM");
+	menu_destroy(mstate.mw);
+	mstate.mw=NULL;
+	redrawscreen();
+
+	mstate.roomid = astrcpy(msg->args[0]);
+	lgw_addf(mstate.lgw,"joined room '%s'\n", msg->args[0]);
+	redraw();
+
+	return true;
+}
+
+static void createroomcb(ws_conn *conn,const Message *msg){
+	(void)conn;
+
+	assert(strcmp(msg->typ, "ok") == 0 && msg->nargs == 1);
+
+	if (handleroomjoin(msg)) {
+		mstate.isspectator = false;
+	} else {
+		lgw_addf(mstate.lgw, "joined room %s\n", msg->args[0]);
+		redraw();
+	}
+}
+
 static void createroom_menufunc(void){
 	lgw_add(mstate.lgw,"createroom_menufunc");
 	redraw();
+	msg_send(mstate.conn,"makeroom",createroomcb,0);
 }
+
 
 static void joinroom_menufunc(void){
 	mstate.state=SM_JOINROOM;
@@ -173,17 +210,24 @@ static void sendroomchatcb(ws_conn *conn,const Message *msg){
 	(void)msg;
 }
 
+
 static void spectateroomcb(ws_conn *conn,const Message *msg){
 	(void)conn;
-	if(strcmp(msg->typ,"ok")!=0){
+	if (handleroomjoin(msg)) {
+		mstate.isspectator = true;
+	} else {
 		lgw_addf(mstate.lgw,"spectateroom: %s: %s",msg->typ,msg->args[0]);
 		redraw();
+	}
+}
+
+static void joinroomcb(ws_conn *conn,const Message *msg){
+	(void)conn;
+	if (handleroomjoin(msg)) {
+		mstate.isspectator = false;
 	} else {
-		mstate.state=SM_INROOM;
-		lgw_add(mstate.lgw,"SM_INROOM");
-		menu_destroy(mstate.mw);
-		mstate.mw=NULL;
-		redrawscreen();
+		lgw_addf(mstate.lgw,"joinroom: %s: %s",msg->typ,msg->args[0]);
+		redraw();
 	}
 }
 
@@ -191,8 +235,12 @@ static void spectateroomcb(ws_conn *conn,const Message *msg){
 
 /// GENERAL FUNCTIONS
 
-static void tryjoinroom(void){
-	msg_send(mstate.conn,"spectateroom",spectateroomcb,1,mstate.roomid);
+static void tryspectateroom(char *roomid){
+	msg_send(mstate.conn,"spectateroom",spectateroomcb,1,roomid);
+}
+
+static void tryjoinroom(char *roomid){
+	msg_send(mstate.conn,"joinroom",joinroomcb,1,roomid);
 }
 
 static void sendchatline(const char *line){
@@ -255,10 +303,9 @@ static void fdhandler(ws_conn *conn,const fd_set *rdset,const fd_set *wrset){
 			if(line!=NULL){
 				prw_destroy(mstate.inpw);
 				mstate.inpw=NULL;
-				mstate.roomid=line;
 				mstate.state=SM_MAINMENU;
 				lgw_add(mstate.lgw,"SM_MAINMENU");
-				tryjoinroom();
+				tryspectateroom(line);
 				redrawscreen();
 			} else redraw();
 			break;
