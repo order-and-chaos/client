@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <assert.h>
 
 #include "util.h"
@@ -20,4 +21,13 @@ char *astrcpy(const char *src) {
 	assert(buf);
 	memcpy(buf,src,len+1);
 	return buf;
+}
+
+char* trimstring(char *s){
+	while(isspace(*s))s++;
+	if(!*s)return s;
+	char *endp=s+strlen(s)-1;
+	while(isspace(*endp))endp--;
+	endp[1]='\0';
+	return s;
 }

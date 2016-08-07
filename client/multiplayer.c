@@ -240,8 +240,9 @@ static void fdhandler(ws_conn *conn,const fd_set *rdset,const fd_set *wrset){
 			break;
 		case SM_INROOM:{
 			char *line=prw_handlekey(mstate.prw,key);
-			if(line!=NULL){
-				sendchatline(line);
+			char *trimstart=line==NULL?NULL:trimstring(line);
+			if(line!=NULL&&strlen(trimstart)!=0){
+				sendchatline(trimstart);
 				free(line);
 			}
 			redraw();
