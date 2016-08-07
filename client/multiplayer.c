@@ -206,7 +206,7 @@ static void msghandler(ws_conn *conn,const Message *msg){
 	} else if(strcmp(msg->typ,"pong")==0){
 		//do nothing
 	} else if(strcmp(msg->typ,"chatmessage")==0){
-		lgw_addf(mstate.chw,"<%s> %s",msg->args[0],msg->args[1]);
+		lgw_addf(mstate.chw,"<%s> %s",msg->args[0],msg->args[2]);
 		redraw();
 	} else {
 		log_message(msg,"Unsollicited message received: ");
