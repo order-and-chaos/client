@@ -1,6 +1,12 @@
 # Configuration section
 CC = gcc
+
 CFLAGS = -Wall -Wextra -O2 -std=c11 -fwrapv
+ifdef DEBUG
+	CFLAGS += -g
+else
+	CFLAGS += -O2
+endif
 
 # library used for ai_term
 TERMLIB = mmab.a
