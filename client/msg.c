@@ -110,7 +110,7 @@ static char readunicodehex(const char *str,int len){
 }
 
 static Message* parse_message(const char *line){
-	FILE *f=fopen("/dev/pts/5","w"); fprintf(f,"(%5d) message: \"%s\"\n",getpid(),line); fclose(f);
+	//FILE *f=fopen("/dev/pts/5","w"); fprintf(f,"(%5d) message: \"%s\"\n",getpid(),line); fclose(f);
 
 	if(line[0]!='{')return NULL;
 	Message *msg=(Message*)malloc(sizeof(Message));
