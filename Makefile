@@ -80,8 +80,8 @@ $(TERMIO_LIB)/libtermio.a: $(TERMIO_LIB)/termio.c
 $(TOMJSON_LIB)/libtomjson.a: $(TOMJSON_LIB)/tomjson.c
 	make -C $(TOMJSON_LIB) clean staticlib test
 
-client/client: $(CLIENTDEPS) $(wildcard client/*.c client/*.h) $(CLIENTLIB)
-	$(CC) $(CFLAGS) -I$(NOPOLL_INC) -I$(TERMIO_LIB) -I$(TOMJSON_LIB) -o $@ $(filter-out %.h,$^) $(NOPOLL_LIB)/libnopoll.a -lssl -lcrypto
+client/client: $(CLIENTDEPS) $(NOPOLL_LIB)/libnopoll.a $(wildcard client/*.c client/*.h) $(CLIENTLIB)
+	$(CC) $(CFLAGS) -I$(NOPOLL_INC) -I$(TERMIO_LIB) -I$(TOMJSON_LIB) -o $@ $(filter-out %.h,$^) -lssl -lcrypto
 
 
 competition/competition: $(wildcard competition/*.c competition/*.h)
