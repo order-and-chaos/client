@@ -151,35 +151,32 @@ static void joinroom_menufunc(void){
 	redrawscreen();
 }
 
-static void log_message(const Message *msg,const char *prefix){
-        int len=strlen(prefix)+6+strlen(msg->typ)+3+1;
-        for(int i=0;i<msg->nargs;i++){
-                if(i!=0)len++;
-                len+=strlen(msg->args[i]);
-        }
-        len++; // '\0'
-        char *line=malloc(len);
-        if(!line)outofmem();
+static char* message_format(const Message *msg){
+	int len=5+strlen(msg->typ)+3+1;
+	for(int i=0;i<msg->nargs;i++){
+		if(i!=0)len++;
+		len+=strlen(msg->args[i]);
+	}
+	len++; // '\0'
+	char *line=malloc(len);
+	if(!line)outofmem();
 
-        int cursor=0;
-        strcpy(line+cursor,prefix);
-        cursor+=strlen(prefix);
-        strcpy(line+cursor," typ='");
-        cursor+=6;
-        strcpy(line+cursor,msg->typ);
-        cursor+=strlen(msg->typ);
-        strcpy(line+cursor,"' [");
-        cursor+=3;
-        for(int i=0;i<msg->nargs;i++){
-                if(i!=0)line[cursor++]=',';
-                strcpy(line+cursor,msg->args[i]);
-                cursor+=strlen(msg->args[i]);
-        }
-        line[cursor++]=']';
-        line[cursor]='\0';
+	int cursor=0;
+	strcpy(line+cursor,"typ='");
+	cursor+=5;
+	strcpy(line+cursor,msg->typ);
+	cursor+=strlen(msg->typ);
+	strcpy(line+cursor,"' [");
+	cursor+=3;
+	for(int i=0;i<msg->nargs;i++){
+		if(i!=0)line[cursor++]=',';
+		strcpy(line+cursor,msg->args[i]);
+		cursor+=strlen(msg->args[i]);
+	}
+	line[cursor++]=']';
+	line[cursor]='\0';
 
-        lgw_add(mstate.lgw,line);
-        free(line);
+	return line;
 }
 
 
@@ -262,7 +259,7 @@ static void msghandler(ws_conn *conn,const Message *msg){
 		printchatmessage(msg->args[0],msg->args[2]);
 		redraw();
 	} else {
-		log_message(msg,"Unsollicited message received: ");
+		lgw_addf(mstate.lgw, "Unsollicited message received: %s", message_format(msg));
 		redraw();
 	}
 }
