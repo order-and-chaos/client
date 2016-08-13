@@ -81,12 +81,12 @@ void msg_destroy(Message *msg){
 
 
 static Jsonnode* message_to_json(Message msg) {
-	Jsonnode *res = json_make_object();
+	Jsonnode *res = json_make_object(3);
 
 	json_object_add_key(&res->objval, "id", json_make_num(msg.id));
 	json_object_add_key(&res->objval, "type", json_make_str(msg.typ));
 
-	Jsonnode *arr = json_make_array();
+	Jsonnode *arr = json_make_array(msg.nargs);
 	for (int i = 0; i < msg.nargs; i++) {
 		json_array_add_item(&arr->arrval, json_make_str(msg.args[i]));
 	}
