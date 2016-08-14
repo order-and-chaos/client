@@ -74,10 +74,10 @@ genwinmasks: genwinmasks.c
 winmasks.h: genwinmasks
 	./genwinmasks >winmasks.h
 
-$(TERMIO_LIB)/libtermio.a: $(TERMIO_LIB)/termio.c
+$(TERMIO_LIB)/libtermio.a: $(wildcard $(TERMIO_LIB)/*.c) $(wildcard $(TERMIO_LIB)/*.h)
 	make -C $(TERMIO_LIB) clean staticlib
 
-$(TOMJSON_LIB)/libtomjson.a: $(TOMJSON_LIB)/tomjson.c
+$(TOMJSON_LIB)/libtomjson.a: $(wildcard $(TOMJSON_LIB)/*.c) $(wildcard $(TOMJSON_LIB)/*.h)
 	make -C $(TOMJSON_LIB) clean staticlib test
 
 client/client: $(CLIENTDEPS) $(NOPOLL_LIB)/libnopoll.a $(wildcard client/*.c client/*.h) $(CLIENTLIB)
