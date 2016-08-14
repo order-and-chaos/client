@@ -86,13 +86,12 @@ static Jsonnode* message_to_json(Message msg) {
 	json_object_add_key(&res->objval, "id", json_make_num(msg.id));
 	json_object_add_key(&res->objval, "type", json_make_str(msg.typ));
 
-	Jsonnode *arr = json_make_array(msg.nargs);
+	json_object_add_key(&res->objval, "args", json_make_array(msg.nargs));
+	Jsonarray *arr = &res->objval.values[2]->arrval;
 	for (int i = 0; i < msg.nargs; i++) {
-		json_array_add_item(&arr->arrval, json_make_str(msg.args[i]));
+		json_array_add_item(arr, json_make_str(msg.args[i]));
 	}
-	json_object_add_key(&res->objval, "args", arr);
 
-	json_free(arr);
 	return res;
 }
 
