@@ -14,6 +14,13 @@
 #endif
 #include <assert.h>
 
+void winreport(int me,int win){
+	switch(win){
+		case ORDER: fprintf(stderr,"%s (Order) won!\n",me==win?"I":"You"); break;
+		case CHAOS: fprintf(stderr,"%s (Chaos) won!\n",me==win?"I":"You"); break;
+	}
+}
+
 // First input line: matches /[OC][12]/ where O/C mean Order/Chaos, 1/2 mean first/second player
 // Afterwards, all I/O lines are /[XO] [0-9]+/, where X/O mean the choice of stone, and the number
 // is the location on the board. Input is move by opponent, output is move of the program. (Left-
@@ -32,6 +39,12 @@ int terminalio(void){
 
 	Board *board=makeboard();
 
+	int win=checkwin(board);
+	if(win!=-1){
+		winreport(me,win);
+		return 0;
+	}
+
 	Move mv;
 
 	if(start){
@@ -45,7 +58,6 @@ int terminalio(void){
 #endif
 	}
 
-	int win;
 	while(true){
 		char c=getchar();
 		if(c=='Q'||c=='q'||feof(stdin))break;
@@ -78,10 +90,7 @@ int terminalio(void){
 		win=checkwin(board);
 		if(win!=-1)break;
 	}
-	switch(win){
-		case ORDER: fprintf(stderr,"%s (Order) won!\n",me==win?"I":"You"); break;
-		case CHAOS: fprintf(stderr,"%s (Chaos) won!\n",me==win?"I":"You"); break;
-	}
+	winreport(me,win);
 
 	free(board);
 	return 0;

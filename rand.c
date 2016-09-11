@@ -50,11 +50,11 @@ void printboard(const Board *board){
 }
 
 int checkwin(const Board *board){
-	if(((board->b[0]|board->b[1])&fullmask)==fullmask)return CHAOS;
 	for(int i=0;i<nwinmasks;i++){
 		if((board->b[0]&winmasks[i])==winmasks[i]||
 		   (board->b[1]&winmasks[i])==winmasks[i])return ORDER;
 	}
+	if(((board->b[0]|board->b[1])&fullmask)==fullmask)return CHAOS;
 	return -1;
 }
 
