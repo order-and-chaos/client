@@ -24,7 +24,7 @@ int main(int argc,char **argv){
 		serverhost=argv[1];
 	}
 
-	initkeyboard();
+	initkeyboard(true);
 	atexit(endkeyboard);
 	initscreen();
 	atexit(endscreen);

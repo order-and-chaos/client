@@ -147,7 +147,7 @@ static void createroom_menufunc(void){
 static void joinroom_menufunc(void){
 	mstate.state=SM_JOINROOM;
 	lgw_add(mstate.lgw,"SM_JOINROOM");
-	mstate.inpw=prw_make(2,6,20);
+	mstate.inpw=prw_make(2,6,20,"Room ID");
 	redrawscreen();
 }
 
@@ -358,7 +358,7 @@ void startmultiplayer(void){
 	mstate.chw=lgw_make(35,15,45,15,"Chat");
 	if(!mstate.chw)outofmem();
 
-	mstate.prw=prw_make(36,30,43);
+	mstate.prw=prw_make(36,30,43, NULL);
 	if(!mstate.prw)outofmem();
 
 	lgw_add(mstate.lgw,"Connecting...");
