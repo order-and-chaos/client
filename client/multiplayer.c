@@ -22,13 +22,22 @@ const char *serverhost="localhost";
 
 static void createroom_menufunc(void);
 static void joinroom_menufunc(void);
-
 static Menuitem mainmenuitems[]={
 	{"Create new room", 'c', createroom_menufunc},
 	{"Join an existing room", 'e', joinroom_menufunc},
 	{"Quit", 'q', NULL}
 };
 static Menudata mainmenudata={3,mainmenuitems};
+
+static void ready_menufunc(void);
+static void spectate_menufunc(void);
+static void leave_menufunc(void);
+static Menuitem lobbymenuitems[]={
+	{"Ready", 'r', ready_menufunc},
+	{"Spectate", 's', spectate_menufunc},
+	{"Leave", 'q', leave_menufunc}
+};
+static Menudata lobbymenudata={3,lobbymenuitems};
 
 
 
@@ -37,7 +46,7 @@ static Menudata mainmenudata={3,mainmenuitems};
 typedef enum Statetype{
 	SM_WAITNICK,
 	SM_MAINMENU,
-	SM_INROOM,
+	SM_INLOBBY,
 	SM_INGAME,
 	SM_CREATEROOM,
 	SM_JOINROOM,
@@ -45,6 +54,31 @@ typedef enum Statetype{
 	SM_QUITCONFIRM,
 	SM_STOPCONFIRM
 } Statetype;
+
+typedef struct Player{
+	char *nick;
+	bool is_a;
+} Player;
+static Player* player_make(const char *nick, bool is_a){
+	Player *res=malloc(sizeof(Player));
+	res->nick=astrcpy(nick);
+	res->is_a=is_a;
+	return res;
+}
+static void player_free(Player *player){
+	free(player->nick);
+	free(player);
+}
+static void player_setnick(Player *player, const char *nick){
+	free(player->nick);
+	player->nick=astrcpy(nick);
+}
+
+typedef struct Gamestate{
+	Player *player_a;
+	Player *player_b;
+	Player *onturn; // points to player_{a,b}
+} Gamestate;
 
 typedef struct Multiplayerstate{
 	ws_conn *conn;
@@ -56,11 +90,14 @@ typedef struct Multiplayerstate{
 	Boardwidget *bdw;
 	Promptwidget *inpw;
 
-	char *nick;
 	char *roomid;
+	bool ready;
 
 	Statetype state;
+	Player *self;
 	bool isspectator;
+
+	Gamestate gamestate;
 } Multiplayerstate;
 
 Multiplayerstate mstate;
@@ -76,10 +113,11 @@ static void mstate_initialise(void){
 	mstate.bdw=NULL;
 	mstate.inpw=NULL;
 
-	mstate.nick=NULL;
 	mstate.roomid=NULL;
 
 	mstate.state=SM_WAITNICK;
+	mstate.self=player_make("", false);
+	mstate.isspectator = false;
 }
 
 static void protocolerror(void){
@@ -110,45 +148,25 @@ static bool handleroomjoin(const Message *msg) {
 		return false;
 	}
 
-	mstate.state=SM_INROOM;
+	mstate.state=SM_INLOBBY;
 
-	lgw_addf(mstate.lgw,"SM_INROOM");
+	lgw_addf(mstate.lgw,"SM_INLOBBY");
 	menu_destroy(mstate.mw);
-	mstate.mw=NULL;
+	mstate.mw = menu_make(2, 2, &lobbymenudata);
 	redrawscreen();
 
 	mstate.roomid = astrcpy(msg->args[0]);
 	lgw_addf(mstate.lgw,"joined room '%s'\n", msg->args[0]);
 	redraw();
 
-	return true;
-}
-
-static void createroomcb(ws_conn *conn,const Message *msg){
-	(void)conn;
-
-	assert(strcmp(msg->typ, "ok") == 0 && msg->nargs == 1);
-
-	if (handleroomjoin(msg)) {
-		mstate.isspectator = false;
+	if (msg->nargs == 2) {
+		mstate.gamestate.player_a = player_make(msg->args[1], true);
+		mstate.gamestate.player_b = mstate.self;
 	} else {
-		lgw_addf(mstate.lgw, "joined room %s\n", msg->args[0]);
-		redraw();
+		mstate.gamestate.player_a = mstate.self;
 	}
-}
 
-static void createroom_menufunc(void){
-	lgw_add(mstate.lgw,"createroom_menufunc");
-	redraw();
-	msg_send(mstate.conn,"makeroom",createroomcb,0);
-}
-
-
-static void joinroom_menufunc(void){
-	mstate.state=SM_JOINROOM;
-	lgw_add(mstate.lgw,"SM_JOINROOM");
-	mstate.inpw=prw_make(2,6,20,"Room ID");
-	redrawscreen();
+	return true;
 }
 
 static char* message_format(const Message *msg){
@@ -179,22 +197,24 @@ static char* message_format(const Message *msg){
 	return line;
 }
 
-
-
 /// WEBSOCKET CALLBACKS
 
 static void getnickcb(ws_conn *conn,const Message *msg){
 	(void)conn;
-	if(strcmp(msg->typ,"ok")!=0||msg->nargs!=1){protocolerror(); return;}
-	asprintf(&mstate.nick,"%s",msg->args[0]);
-	if(!mstate.nick)outofmem();
-	lgw_addf(mstate.lgw,"Nickname: %s",mstate.nick);
+	fprintf(stderr, "%s\n", message_format(msg));
+	if(strcmp(msg->typ,"ok")!=0||msg->nargs!=1) {
+		protocolerror();
+		return;
+	}
+	lgw_addf(mstate.lgw,"Nickname: %s",msg->args[0]);
 
 	char *tit;
-	asprintf(&tit,"Chat (%s)",mstate.nick);
+	asprintf(&tit,"Chat (%s)",msg->args[0]);
 	if(!tit)outofmem();
 	lgw_changetitle(mstate.chw,tit);
 	free(tit);
+
+	player_setnick(mstate.self, msg->args[0]);
 
 	mstate.state=SM_MAINMENU;
 	lgw_add(mstate.lgw,"SM_MAINMENU");
@@ -212,6 +232,20 @@ static void spectateroomcb(ws_conn *conn,const Message *msg){
 	(void)conn;
 	if (handleroomjoin(msg)) {
 		mstate.isspectator = true;
+		lobbymenuitems[1].text = "Play";
+		redrawscreen();
+
+#define FREE(x) do { \
+	if (x != NULL && x != mstate.self) { \
+		player_free(x); \
+	} \
+	x = NULL; \
+} while(0)
+		// REVIEW
+		FREE(mstate.gamestate.player_a);
+		FREE(mstate.gamestate.player_b);
+#undef FREE
+
 	} else {
 		lgw_addf(mstate.lgw,"spectateroom: %s: %s",msg->typ,msg->args[0]);
 		redraw();
@@ -222,15 +256,40 @@ static void joinroomcb(ws_conn *conn,const Message *msg){
 	(void)conn;
 	if (handleroomjoin(msg)) {
 		mstate.isspectator = false;
+		lobbymenuitems[1].text = "Spectate";
+		redrawscreen();
 	} else {
 		lgw_addf(mstate.lgw,"joinroom: %s: %s",msg->typ,msg->args[0]);
 		redraw();
 	}
 }
 
+static void leaveroomcb(ws_conn *conn,const Message *msg){
+	(void)conn;
+	assert(strcmp(msg->typ, "ok") == 0);
+	mstate.state=SM_MAINMENU;
+	lgw_add(mstate.lgw,"SM_MAINMENU");
+	menu_destroy(mstate.mw);
+	mstate.mw=menu_make(2,2,&mainmenudata);
+	mstate.roomid=NULL;
+	redrawscreen();
+}
+
+static void createroomcb(ws_conn *conn,const Message *msg){
+	(void)conn;
+
+	assert(strcmp(msg->typ, "ok") == 0 && msg->nargs == 1);
+
+	if (handleroomjoin(msg)) {
+		mstate.isspectator = false;
+	} else {
+		lgw_addf(mstate.lgw, "joined room %s\n", msg->args[0]);
+		redraw();
+	}
+}
 
 
-/// GENERAL FUNCTIONS
+/// WEBSOCKET ACTIONS
 
 static void tryspectateroom(char *roomid){
 	msg_send(mstate.conn,"spectateroom",spectateroomcb,1,roomid);
@@ -240,15 +299,59 @@ static void tryjoinroom(char *roomid){
 	msg_send(mstate.conn,"joinroom",joinroomcb,1,roomid);
 }
 
+static void leaveroom(void) {
+	msg_send(mstate.conn, "leaveroom", leaveroomcb, 0);
+}
+
 static void printchatmessage(const char *from,const char *msg){
 	lgw_addf(mstate.chw,"<%s> %s",from,msg);
 }
 
 static void sendchatline(const char *line){
-	if(mstate.state!=SM_INROOM)lgw_add(mstate.lgw,"[WARN] sendchatline while not in room");
+	if(mstate.state!=SM_INLOBBY)lgw_add(mstate.lgw,"[WARN] sendchatline while not in room");
 	msg_send(mstate.conn,"sendroomchat",sendroomchatcb,1,line);
-	printchatmessage(mstate.nick,line);
+	printchatmessage(mstate.self->nick,line);
 }
+
+
+/// MENU FUNCTIONS
+
+static void createroom_menufunc(void){
+	lgw_add(mstate.lgw,"createroom_menufunc");
+	redraw();
+	msg_send(mstate.conn,"makeroom",createroomcb,0);
+}
+
+
+static void joinroom_menufunc(void){
+	mstate.state=SM_JOINROOM;
+	lgw_add(mstate.lgw,"SM_JOINROOM");
+	mstate.inpw=prw_make(2,6,20,"Room ID");
+	redrawscreen();
+}
+
+static void ready_menufunc(void) {
+	mstate.ready = !mstate.ready;
+	// ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Message*),int nargs,...
+
+	lobbymenuitems[0].text = mstate.ready ? "Unready" : "Ready";
+	redrawscreen();
+}
+
+static void spectate_menufunc(void) {
+	if (mstate.isspectator) {
+		tryjoinroom(mstate.roomid);
+	} else {
+		tryspectateroom(mstate.roomid);
+	}
+}
+
+static void leave_menufunc(void) {
+	leaveroom();
+}
+
+
+/// GENERAL FUNCTIONS
 
 static void msghandler(ws_conn *conn,const Message *msg){
 	if(strcmp(msg->typ,"ping")==0){
@@ -257,6 +360,15 @@ static void msghandler(ws_conn *conn,const Message *msg){
 		//do nothing
 	} else if(strcmp(msg->typ,"chatmessage")==0){
 		printchatmessage(msg->args[0],msg->args[2]);
+		redraw();
+	} else if (strcmp(msg->typ, "joinroom") == 0) {
+		if (strcmp(msg->args[1], "0") == 0) {
+			mstate.gamestate.player_a = player_make(msg->args[0], true);
+		} else {
+			mstate.gamestate.player_b = player_make(msg->args[0], false);
+		}
+
+		lgw_addf(mstate.lgw, "%s entered the room", msg->args[0]);
 		redraw();
 	} else {
 		lgw_addf(mstate.lgw, "Unsollicited message received: %s", message_format(msg));
@@ -272,6 +384,7 @@ static void fdhandler(ws_conn *conn,const fd_set *rdset,const fd_set *wrset){
 	switch(mstate.state){
 		case SM_WAITNICK:
 			break;
+		case SM_INLOBBY:
 		case SM_MAINMENU:
 			switch(menu_handlekey(mstate.mw,key)){
 				case MENUKEY_HANDLED:
@@ -288,7 +401,7 @@ static void fdhandler(ws_conn *conn,const fd_set *rdset,const fd_set *wrset){
 					break;
 			}
 			break;
-		case SM_INROOM:{
+		case SM_INGAME:{
 			char *line=prw_handlekey(mstate.prw,key);
 			char *trimstart=line==NULL?NULL:trimstring(line);
 			if(line!=NULL&&strlen(trimstart)!=0){
@@ -312,7 +425,6 @@ static void fdhandler(ws_conn *conn,const fd_set *rdset,const fd_set *wrset){
 			} else redraw();
 			break;
 		}
-		case SM_INGAME:
 		case SM_JOINNAME:
 		case SM_QUITCONFIRM:
 		case SM_STOPCONFIRM:
@@ -352,10 +464,10 @@ void startmultiplayer(void){
 
 	mstate_initialise();
 
-	mstate.lgw=lgw_make(35,0,45,15,"Log");
+	mstate.lgw=lgw_make(35,0,45,15,"Log",true);
 	if(!mstate.lgw)outofmem();
 
-	mstate.chw=lgw_make(35,15,45,15,"Chat");
+	mstate.chw=lgw_make(35,15,45,15,"Chat",true);
 	if(!mstate.chw)outofmem();
 
 	mstate.prw=prw_make(36,30,43, NULL);

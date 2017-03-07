@@ -15,12 +15,9 @@ __attribute__((noreturn)) void outofmem(void){
 }
 
 char *astrcpy(const char *src) {
-	assert(src);
-	int len=strlen(src);
-	char *buf=malloc(len+1);
-	assert(buf);
-	memcpy(buf,src,len+1);
-	return buf;
+	char *res = strdup(src);
+	assert(res);
+	return res;
 }
 
 char* trimstring(char *s){
