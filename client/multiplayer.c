@@ -20,8 +20,8 @@ const char *serverhost="localhost";
 
 /// MENUDATA'S
 
-static void createroom_menufunc(void);
-static void joinroom_menufunc(void);
+static void createroom_menufunc(int);
+static void joinroom_menufunc(int);
 static Menuitem mainmenuitems[]={
 	{"Create new room", 'c', createroom_menufunc},
 	{"Join an existing room", 'e', joinroom_menufunc},
@@ -29,9 +29,9 @@ static Menuitem mainmenuitems[]={
 };
 static Menudata mainmenudata={3,mainmenuitems};
 
-static void ready_menufunc(void);
-static void spectate_menufunc(void);
-static void leave_menufunc(void);
+static void ready_menufunc(int);
+static void spectate_menufunc(int);
+static void leave_menufunc(int);
 static Menuitem lobbymenuitems[]={
 	{"Ready", 'r', ready_menufunc},
 	{"Spectate", 's', spectate_menufunc},
@@ -316,21 +316,21 @@ static void sendchatline(const char *line){
 
 /// MENU FUNCTIONS
 
-static void createroom_menufunc(void){
+static void createroom_menufunc(){
 	lgw_add(mstate.lgw,"createroom_menufunc");
 	redraw();
 	msg_send(mstate.conn,"makeroom",createroomcb,0);
 }
 
 
-static void joinroom_menufunc(void){
+static void joinroom_menufunc(){
 	mstate.state=SM_JOINROOM;
 	lgw_add(mstate.lgw,"SM_JOINROOM");
 	mstate.inpw=prw_make(2,6,20,"Room ID");
 	redrawscreen();
 }
 
-static void ready_menufunc(void) {
+static void ready_menufunc() {
 	mstate.ready = !mstate.ready;
 	// ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Message*),int nargs,...
 
@@ -338,7 +338,7 @@ static void ready_menufunc(void) {
 	redrawscreen();
 }
 
-static void spectate_menufunc(void) {
+static void spectate_menufunc() {
 	if (mstate.isspectator) {
 		tryjoinroom(mstate.roomid);
 	} else {
@@ -346,7 +346,7 @@ static void spectate_menufunc(void) {
 	}
 }
 
-static void leave_menufunc(void) {
+static void leave_menufunc() {
 	leaveroom();
 }
 
@@ -455,7 +455,7 @@ static void signalhandler(int sig){
 	exit(130);
 }
 
-void startmultiplayer(void){
+void startmultiplayer(){
 	clearscreen();
 	moveto(0,0);
 	setbold(true);

@@ -1,3 +1,3 @@
 #pragma once
 
-void startsingleplayer(void);
+void startsingleplayer(int);

@@ -4,7 +4,7 @@
 #include "../ai.h"
 #include "../params.h"
 
-void startsingleplayer(void){
+void startsingleplayer(){
 	const int player=ORDER;
 
 	clearscreen();
