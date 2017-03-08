@@ -361,14 +361,16 @@ static void leave_menufunc() {
 /// GENERAL FUNCTIONS
 
 static void msghandler(ws_conn *conn,const Message *msg){
-	if(strcmp(msg->typ,"ping")==0){
+#define CHECKTYPE(x) (strcmp(msg->typ, x) == 0)
+
+	if(CHECKTYPE("ping")){
 		msg_reply(msg->id,conn,"pong",NULL,0);
-	} else if(strcmp(msg->typ,"pong")==0){
+	} else if(CHECKTYPE("pong")){
 		//do nothing
-	} else if(strcmp(msg->typ,"chatmessage")==0){
+	} else if(CHECKTYPE("chatmessage")){
 		printchatmessage(msg->args[0],msg->args[2]);
 		redraw();
-	} else if (strcmp(msg->typ, "joinroom") == 0) {
+	} else if (CHECKTYPE("joinroom") ) {
 		if (strcmp(msg->args[1], "0") == 0) {
 			mstate.gamestate.player_a = player_make(msg->args[0], true);
 		} else {
@@ -377,7 +379,7 @@ static void msghandler(ws_conn *conn,const Message *msg){
 
 		lgw_addf(mstate.lgw, "%s entered the room", msg->args[0]);
 		redraw();
-	} else if (strcmp(msg->typ, "ready") == 0) {
+	} else if (CHECKTYPE("ready") ) {
 		const char *nick = msg->args[0];
 		const Gamestate *gs = &mstate.gamestate;
 
@@ -396,6 +398,8 @@ static void msghandler(ws_conn *conn,const Message *msg){
 		lgw_addf(mstate.lgw, "Unsollicited message received: %s", message_format(msg));
 		redraw();
 	}
+
+#undef CHECKTYPE
 }
 
 static void fdhandler(ws_conn *conn,const fd_set *rdset,const fd_set *wrset){
