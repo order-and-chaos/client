@@ -58,6 +58,7 @@ typedef enum Statetype{
 typedef struct Player{
 	char *nick;
 	bool is_a;
+	bool ready;
 } Player;
 static Player* player_make(const char *nick, bool is_a){
 	Player *res=malloc(sizeof(Player));
@@ -91,7 +92,6 @@ typedef struct Multiplayerstate{
 	Promptwidget *inpw;
 
 	char *roomid;
-	bool ready;
 
 	Statetype state;
 	Player *self;
@@ -338,10 +338,10 @@ static void joinroom_menufunc(){
 }
 
 static void ready_menufunc() {
-	mstate.ready = !mstate.ready;
-	msg_send(mstate.conn, "ready", okcb, 1, !mstate.ready ? "0" : "1");
+	mstate.self->ready = !mstate.self->ready;
+	msg_send(mstate.conn, "ready", okcb, 1, !mstate.self->ready ? "0" : "1");
 
-	lobbymenuitems[0].text = mstate.ready ? "Unready" : "Ready";
+	lobbymenuitems[0].text = mstate.self->ready ? "Unready" : "Ready";
 	redrawscreen();
 }
 
@@ -376,6 +376,21 @@ static void msghandler(ws_conn *conn,const Message *msg){
 		}
 
 		lgw_addf(mstate.lgw, "%s entered the room", msg->args[0]);
+		redraw();
+	} else if (strcmp(msg->typ, "ready") == 0) {
+		const char *nick = msg->args[0];
+		const Gamestate *gs = &mstate.gamestate;
+
+		if (strcmp(gs->player_a->nick, nick) == 0) {
+			gs->player_a->ready = true;
+		} else if (strcmp(gs->player_b->nick, nick) == 0) {
+			gs->player_b->ready = true;
+		} else {
+			// TODO: fuck
+			assert(false);
+		}
+
+		lgw_addf(mstate.lgw, "%s is ready!", nick);
 		redraw();
 	} else {
 		lgw_addf(mstate.lgw, "Unsollicited message received: %s", message_format(msg));
