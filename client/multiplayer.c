@@ -199,6 +199,13 @@ static char* message_format(const Message *msg){
 
 /// WEBSOCKET CALLBACKS
 
+// simple callback that asserts when server replies with an error, should mostly
+// just be used as a placeholder.
+static void okcb(ws_conn *conn,const Message *msg){
+	(void)conn;
+	assert(strcmp(msg->typ,"ok")==0);
+}
+
 static void getnickcb(ws_conn *conn,const Message *msg){
 	(void)conn;
 	fprintf(stderr, "%s\n", message_format(msg));
@@ -332,7 +339,7 @@ static void joinroom_menufunc(){
 
 static void ready_menufunc() {
 	mstate.ready = !mstate.ready;
-	// ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Message*),int nargs,...
+	msg_send(mstate.conn, "ready", okcb, 1, !mstate.ready ? "0" : "1");
 
 	lobbymenuitems[0].text = mstate.ready ? "Unready" : "Ready";
 	redrawscreen();
