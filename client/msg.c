@@ -151,14 +151,13 @@ bool msg_send_x(int id,ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,co
 	char *res = json_stringify(node);
 	json_free(node);
 
-	fprintf(stderr, "Sending: '%s'\n",res);
-
 	// add an \n after the message
 	size_t len = strlen(res);
 	res = realloc(res, (len+1) * sizeof(char));
 	res[len  ] = '\n';
 	res[len+1] = '\0';
 
+	fprintf(stderr, ">%s", res);
 	ws_writestr(conn,res);
 	free(res);
 
@@ -226,6 +225,7 @@ void msg_runloop(
 			}
 			Message *msg=parse_message(line);
 			if(msg){
+				fprintf(stderr, "<%s\n", line);
 				int id=msg->id;
 				Chunk *ch=hash_find(id);
 				if(ch==NULL)msghandler(conn,msg);

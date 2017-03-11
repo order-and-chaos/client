@@ -142,9 +142,7 @@ static void redrawscreen(void){
 }
 
 static bool handleroomjoin(const Message *msg) {
-	fprintf(stderr,"inpw: %p\n", mstate.inpw);
 	if (strcmp(msg->typ, "ok") != 0) {
-		fprintf(stderr,"return\n");
 		return false;
 	}
 
@@ -208,7 +206,6 @@ static void okcb(ws_conn *conn,const Message *msg){
 
 static void getnickcb(ws_conn *conn,const Message *msg){
 	(void)conn;
-	fprintf(stderr, "%s\n", message_format(msg));
 	if(strcmp(msg->typ,"ok")!=0||msg->nargs!=1) {
 		protocolerror();
 		return;
