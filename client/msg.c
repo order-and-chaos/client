@@ -183,6 +183,34 @@ bool msg_reply(int id,ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,con
 	return ret;
 }
 
+char* msg_format(const Message *msg){
+	int len=5+strlen(msg->typ)+3+1;
+	for(int i=0;i<msg->nargs;i++){
+		if(i!=0)len++;
+		len+=strlen(msg->args[i]);
+	}
+	len++; // '\0'
+	char *line=malloc(len);
+	if(!line)outofmem();
+
+	int cursor=0;
+	strcpy(line+cursor,"typ='");
+	cursor+=5;
+	strcpy(line+cursor,msg->typ);
+	cursor+=strlen(msg->typ);
+	strcpy(line+cursor,"' [");
+	cursor+=3;
+	for(int i=0;i<msg->nargs;i++){
+		if(i!=0)line[cursor++]=',';
+		strcpy(line+cursor,msg->args[i]);
+		cursor+=strlen(msg->args[i]);
+	}
+	line[cursor++]=']';
+	line[cursor]='\0';
+
+	return line;
+}
+
 void msg_runloop(
 		ws_conn *conn,
 		struct timeval* (*populate_fdsets)(fd_set*,fd_set*),

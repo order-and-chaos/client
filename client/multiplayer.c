@@ -90,6 +90,7 @@ typedef struct Multiplayerstate{
 	Menuwidget *mw;
 	Boardwidget *bdw;
 	Promptwidget *inpw;
+	Board *board;
 
 	char *roomid;
 
@@ -112,6 +113,7 @@ static void mstate_initialise(void){
 	mstate.mw=NULL;
 	mstate.bdw=NULL;
 	mstate.inpw=NULL;
+	mstate.board=NULL;
 
 	mstate.roomid=NULL;
 
@@ -138,7 +140,28 @@ static void redrawscreen(void){
 	if(mstate.prw)prw_redraw(mstate.prw);
 	if(mstate.mw)menu_redraw(mstate.mw);
 	if(mstate.inpw)prw_redraw(mstate.inpw);
+	if(mstate.board)tprintboard(mstate.board);
 	redraw();
+}
+
+static bool allplayersready(void) {
+	const Gamestate *gs = &mstate.gamestate;
+	return (
+		gs->player_a && gs->player_a->ready &&
+		gs->player_b && gs->player_b->ready
+	);
+}
+
+static Player* searchplayer(const char *nick) {
+	const Gamestate *gs = &mstate.gamestate;
+
+	if (gs->player_a && strcmp(gs->player_a->nick, nick) == 0) {
+		return gs->player_a;
+	} else if (gs->player_b && strcmp(gs->player_b->nick, nick) == 0) {
+		return gs->player_b;
+	}
+
+	return NULL;
 }
 
 static bool handleroomjoin(const Message *msg) {
@@ -167,33 +190,14 @@ static bool handleroomjoin(const Message *msg) {
 	return true;
 }
 
-static char* message_format(const Message *msg){
-	int len=5+strlen(msg->typ)+3+1;
-	for(int i=0;i<msg->nargs;i++){
-		if(i!=0)len++;
-		len+=strlen(msg->args[i]);
-	}
-	len++; // '\0'
-	char *line=malloc(len);
-	if(!line)outofmem();
-
-	int cursor=0;
-	strcpy(line+cursor,"typ='");
-	cursor+=5;
-	strcpy(line+cursor,msg->typ);
-	cursor+=strlen(msg->typ);
-	strcpy(line+cursor,"' [");
-	cursor+=3;
-	for(int i=0;i<msg->nargs;i++){
-		if(i!=0)line[cursor++]=',';
-		strcpy(line+cursor,msg->args[i]);
-		cursor+=strlen(msg->args[i]);
-	}
-	line[cursor++]=']';
-	line[cursor]='\0';
-
-	return line;
+static void handlegamestart(const Message *msg) {
+	(void)msg;
+	mstate.state = SM_INGAME;
+	lgw_addf(mstate.lgw,"SM_INLOBBY");
+	menu_destroy(mstate.mw);
+	redrawscreen();
 }
+
 
 /// WEBSOCKET CALLBACKS
 
@@ -225,12 +229,6 @@ static void getnickcb(ws_conn *conn,const Message *msg){
 	mstate.mw=menu_make(2,2,&mainmenudata);
 	redraw();
 }
-
-static void sendroomchatcb(ws_conn *conn,const Message *msg){
-	(void)conn;
-	(void)msg;
-}
-
 
 static void spectateroomcb(ws_conn *conn,const Message *msg){
 	(void)conn;
@@ -292,6 +290,10 @@ static void createroomcb(ws_conn *conn,const Message *msg){
 	}
 }
 
+static void startgamecb(ws_conn *conn, const Message *msg) {
+	(void)conn;
+	handlegamestart(msg);
+}
 
 /// WEBSOCKET ACTIONS
 
@@ -307,6 +309,10 @@ static void leaveroom(void) {
 	msg_send(mstate.conn, "leaveroom", leaveroomcb, 0);
 }
 
+static void startgame(void) {
+	msg_send(mstate.conn, "startgame", startgamecb, 0);
+}
+
 static void printchatmessage(const char *from,const char *msg){
 	lgw_addf(mstate.chw,"<%s> %s",from,msg);
 }
@@ -315,7 +321,7 @@ static void sendchatline(const char *line){
 	if (mstate.state != SM_INLOBBY) {
 		lgw_add(mstate.lgw, "[WARN] sendchatline while not in room");
 	}
-	msg_send(mstate.conn, "sendroomchat", sendroomchatcb, 1, line);
+	msg_send(mstate.conn, "sendroomchat", okcb, 1, line);
 	printchatmessage(mstate.self->nick, line);
 }
 
@@ -379,23 +385,38 @@ static void msghandler(ws_conn *conn,const Message *msg){
 
 		lgw_addf(mstate.lgw, "%s entered the room", msg->args[0]);
 		redraw();
+	} else if (CHECKTYPE("leaveroom")) {
+		const char *nick = msg->args[0];
+
+		Player *player = searchplayer(nick);
+		assert(player != NULL);
+
+		if (player->is_a) {
+			mstate.gamestate.player_a = NULL;
+		} else {
+			mstate.gamestate.player_b = NULL;
+		}
+		free(player);
+
+		lgw_addf(mstate.lgw, "%s left the room", nick);
+		redraw();
 	} else if (CHECKTYPE("ready")) {
 		const char *nick = msg->args[0];
-		const Gamestate *gs = &mstate.gamestate;
 
-		if (strcmp(gs->player_a->nick, nick) == 0) {
-			gs->player_a->ready = true;
-		} else if (strcmp(gs->player_b->nick, nick) == 0) {
-			gs->player_b->ready = true;
-		} else {
-			// TODO: fuck
-			assert(false);
+		Player *player = searchplayer(nick);
+		assert(player != NULL);
+		player->ready = EQUALS(msg->args[1], "1");
+
+		if (allplayersready()) {
+			startgame();
 		}
 
 		lgw_addf(mstate.lgw, "%s is ready!", nick);
 		redraw();
 	} else {
-		lgw_addf(mstate.lgw, "Unsollicited message received: %s", message_format(msg));
+		char *message = msg_format(msg);
+		lgw_addf(mstate.lgw, "Unsollicited message received: %s", message);
+		free(message);
 		redraw();
 	}
 

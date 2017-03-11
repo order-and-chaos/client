@@ -23,6 +23,8 @@ bool msg_send(ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Messa
 //msg_send, but reply to specific id
 bool msg_reply(int id,ws_conn *conn,const char *typ,void (*cb)(ws_conn *conn,const Message*),int nargs,...);
 
+char* msg_format(const Message*);
+
 //populate_fdsets should populate the given fd_set's with any additional fd's
 //that should trigger an event, and return a timeout after which timeouthandler
 //should be called (or NULL to not give such a timeout). The timeout will be
