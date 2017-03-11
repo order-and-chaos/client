@@ -228,9 +228,10 @@ void msg_runloop(
 				fprintf(stderr, "<%s\n", line);
 				int id=msg->id;
 				Chunk *ch=hash_find(id);
-				if(ch==NULL)msghandler(conn,msg);
-				else {
-					ch->value(conn,msg);
+				if (ch == NULL) {
+					msghandler(conn, msg);
+				} else {
+					ch->value(conn, msg);
 					hash_delete(id);
 				}
 				msg_destroy(msg);

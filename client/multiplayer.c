@@ -312,9 +312,11 @@ static void printchatmessage(const char *from,const char *msg){
 }
 
 static void sendchatline(const char *line){
-	if(mstate.state!=SM_INLOBBY)lgw_add(mstate.lgw,"[WARN] sendchatline while not in room");
-	msg_send(mstate.conn,"sendroomchat",sendroomchatcb,1,line);
-	printchatmessage(mstate.self->nick,line);
+	if (mstate.state != SM_INLOBBY) {
+		lgw_add(mstate.lgw, "[WARN] sendchatline while not in room");
+	}
+	msg_send(mstate.conn, "sendroomchat", sendroomchatcb, 1, line);
+	printchatmessage(mstate.self->nick, line);
 }
 
 
@@ -358,17 +360,18 @@ static void leave_menufunc() {
 /// GENERAL FUNCTIONS
 
 static void msghandler(ws_conn *conn,const Message *msg){
-#define CHECKTYPE(x) (strcmp(msg->typ, x) == 0)
+#define EQUALS(a, b) (strcmp(a, b) == 0)
+#define CHECKTYPE(x) EQUALS(msg->typ, x)
 
-	if(CHECKTYPE("ping")){
+	if (CHECKTYPE("ping")) {
 		msg_reply(msg->id,conn,"pong",NULL,0);
-	} else if(CHECKTYPE("pong")){
+	} else if(CHECKTYPE("pong")) {
 		//do nothing
-	} else if(CHECKTYPE("chatmessage")){
+	} else if(CHECKTYPE("chatmessage")) {
 		printchatmessage(msg->args[0],msg->args[2]);
 		redraw();
 	} else if (CHECKTYPE("joinroom") ) {
-		if (strcmp(msg->args[1], "0") == 0) {
+		if (EQUALS(msg->args[1], "0")) {
 			mstate.gamestate.player_a = player_make(msg->args[0], true);
 		} else {
 			mstate.gamestate.player_b = player_make(msg->args[0], false);
@@ -376,7 +379,7 @@ static void msghandler(ws_conn *conn,const Message *msg){
 
 		lgw_addf(mstate.lgw, "%s entered the room", msg->args[0]);
 		redraw();
-	} else if (CHECKTYPE("ready") ) {
+	} else if (CHECKTYPE("ready")) {
 		const char *nick = msg->args[0];
 		const Gamestate *gs = &mstate.gamestate;
 
@@ -397,6 +400,7 @@ static void msghandler(ws_conn *conn,const Message *msg){
 	}
 
 #undef CHECKTYPE
+#undef EQUALS
 }
 
 static void fdhandler(ws_conn *conn,const fd_set *rdset,const fd_set *wrset){
